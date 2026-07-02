@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.cubemaster.presentation.demolition
 
 import androidx.compose.foundation.layout.*

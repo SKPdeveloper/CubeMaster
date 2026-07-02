@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.cubemaster.presentation.layers
 
 import androidx.compose.foundation.layout.*
@@ -306,8 +308,8 @@ private fun AddLayerDialog(
 
 @Composable
 private fun PresetsBottomSheet(
-    presets: List<com.cubemaster.core.catalog.LayerPreset>,
-    onSelect: (com.cubemaster.core.catalog.LayerPreset) -> Unit,
+    presets: List<LayerPreset>,
+    onSelect: (LayerPreset) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(

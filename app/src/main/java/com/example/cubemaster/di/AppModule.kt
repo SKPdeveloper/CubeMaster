@@ -7,7 +7,8 @@ import com.example.cubemaster.data.local.AppDatabase
 import com.example.cubemaster.data.local.dao.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.firestoreSettings
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.PersistentCacheSettings
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
@@ -71,10 +72,9 @@ object FirebaseModule {
     @Singleton
     fun provideFirestore(): FirebaseFirestore {
         val fs = FirebaseFirestore.getInstance()
-        val settings = firestoreSettings {
-            isPersistenceEnabled = true
-            cacheSizeBytes = FirebaseFirestore.CACHE_SIZE_UNLIMITED
-        }
+        val settings = FirebaseFirestoreSettings.Builder()
+            .setLocalCacheSettings(PersistentCacheSettings.newBuilder().build())
+            .build()
         fs.firestoreSettings = settings
         return fs
     }

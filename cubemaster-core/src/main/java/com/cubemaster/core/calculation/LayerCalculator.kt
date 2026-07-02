@@ -2,6 +2,7 @@ package com.cubemaster.core.calculation
 
 import com.cubemaster.core.model.*
 import kotlin.math.ceil
+import kotlin.math.floor
 
 data class LayerResult(
     val mixMassKg: Double,

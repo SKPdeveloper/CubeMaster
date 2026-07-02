@@ -10,6 +10,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -94,9 +97,9 @@ fun AuthScreen(
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible)
-                                        androidx.compose.material.icons.Icons.Default.VisibilityOff
+                                        Icons.Default.VisibilityOff
                                     else
-                                        androidx.compose.material.icons.Icons.Default.Visibility,
+                                        Icons.Default.Visibility,
                                     contentDescription = if (passwordVisible) "Сховати" else "Показати"
                                 )
                             }

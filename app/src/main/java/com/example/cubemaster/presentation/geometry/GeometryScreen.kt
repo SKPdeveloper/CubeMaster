@@ -338,7 +338,7 @@ private fun PolygonPreview(
         fun toCanvas(v: Vertex): Offset {
             val x = padding + (v.x - minX) * scaleX + offset.x
             val y = size.height - padding - (v.y - minY) * scaleY + offset.y
-            return Offset(x, y)
+            return Offset(x.toFloat(), y.toFloat())
         }
 
         val path = Path()
