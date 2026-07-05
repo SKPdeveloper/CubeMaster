@@ -51,6 +51,14 @@
                 tools:node="remove" />
         </provider>
 
+        <!-- Add WorkManager initialization -->
+        <provider
+            android:name="androidx.work.impl.WorkManagerInitializer"
+            android:authorities="${applicationId}.workmanager-init"
+            android:exported="false"
+            tools:node="merge"
+            tools:replace="android:authorities" />
+
     </application>
 
 </manifest>

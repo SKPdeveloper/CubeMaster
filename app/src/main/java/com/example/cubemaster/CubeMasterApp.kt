@@ -24,7 +24,8 @@ class CubeMasterApp : Application(), Configuration.Provider {
     }
 
     private fun schedulePeriodicSync() {
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        val workManager = WorkManager.getInstance(this)
+        workManager.enqueueUniquePeriodicWork(
             SyncWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             SyncWorker.buildRequest()
