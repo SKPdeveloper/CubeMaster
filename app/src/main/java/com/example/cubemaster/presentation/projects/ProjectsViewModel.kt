@@ -37,7 +37,7 @@ class ProjectsViewModel @Inject constructor(
             }
         }
         workManager.enqueueUniqueWork(
-            SyncWorker.WORK_NAME,
+            SyncWorker.ONE_TIME_WORK_NAME,
             androidx.work.ExistingWorkPolicy.KEEP,
             SyncWorker.buildOneTimeRequest()
         )

@@ -1,6 +1,7 @@
 package com.example.cubemaster.data.sync
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.example.cubemaster.data.local.AppDatabase
@@ -60,12 +61,14 @@ class SyncWorker @AssistedInject constructor(
 
             Result.success()
         } catch (e: Exception) {
+            Log.e("SyncWorker", "Синхронізація не вдалась (спроба $runAttemptCount)", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
 
     companion object {
         const val WORK_NAME = "cubemaster_sync"
+        const val ONE_TIME_WORK_NAME = "cubemaster_sync_once"
 
         fun buildRequest(): PeriodicWorkRequest =
             PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
