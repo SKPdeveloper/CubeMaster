@@ -45,6 +45,16 @@ object LayerPresets {
         ),
 
         LayerPreset(
+            id = "wall_tile_bathroom",
+            nameUa = "Стіни санвузла під плитку",
+            surfaceKind = SurfaceKind.Wall,
+            layers = listOf(
+                Layer(UUID.randomUUID().toString(), 1, LayerType.PrimerDeep, null, "PRIMER_DEEP"),
+                Layer(UUID.randomUUID().toString(), 2, LayerType.WallTile, null, "TILE_ADHESIVE")
+            )
+        ),
+
+        LayerPreset(
             id = "wall_old_building_wallpaper",
             nameUa = "Стіни старого фонду під шпалери",
             surfaceKind = SurfaceKind.Wall,
@@ -76,4 +86,6 @@ object LayerPresets {
             )
         )
     )
+
+    fun byId(id: String): LayerPreset? = all.firstOrNull { it.id == id }
 }

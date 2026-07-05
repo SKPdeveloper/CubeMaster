@@ -7,6 +7,7 @@ data class Project(
     val ownerId: String,
     val title: String,
     val address: String?,
+    val documentedAreaM2: Double?,
     val createdAt: Instant,
     val updatedAt: Instant,
     val syncState: SyncState = SyncState.PendingUpload

@@ -1,11 +1,14 @@
 package com.example.cubemaster.presentation.demolition
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cubemaster.core.calculation.*
 import com.cubemaster.core.model.*
 import com.example.cubemaster.data.local.entity.DemolitionTaskEntity
+import com.example.cubemaster.data.remote.AuthRepository
+import com.example.cubemaster.domain.repository.AttachmentRepository
 import com.example.cubemaster.domain.repository.DemolitionRepository
 import com.example.cubemaster.domain.repository.RoomRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +24,8 @@ data class DemolitionUiState(
     val totalDebrisM3: Double = 0.0,
     val totalLaborHours: Double = 0.0,
     val containersCount: Int = 0,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val error: String? = null
 )
 
 @HiltViewModel
@@ -29,10 +33,13 @@ class DemolitionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val roomRepo: RoomRepository,
     private val demolitionRepo: DemolitionRepository,
+    private val attachmentRepo: AttachmentRepository,
+    private val auth: AuthRepository,
     private val json: Json
 ) : ViewModel() {
 
     private val roomId: String = savedStateHandle["roomId"]!!
+    private val uid: String get() = auth.currentUserId ?: ""
     private val _state = MutableStateFlow(DemolitionUiState())
     val state: StateFlow<DemolitionUiState> = _state.asStateFlow()
 
@@ -120,5 +127,38 @@ class DemolitionViewModel @Inject constructor(
                 tasks = emptyList() // simplified; full impl would parse cachedResultJson
             )
         }
+    }
+
+    fun observeAttachments() = attachmentRepo.observeForParent(AttachmentParent.Demolition, roomId)
+
+    fun addPhoto(uri: Uri) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPhoto(uid, projectId, roomId, AttachmentParent.Demolition, roomId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити фото: ${e.message}") }
+            }
+        }
+    }
+
+    fun addPdf(uri: Uri) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPdf(uid, projectId, roomId, AttachmentParent.Demolition, roomId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити PDF: ${e.message}") }
+            }
+        }
+    }
+
+    fun addNote(text: String) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch { attachmentRepo.addNote(projectId, roomId, AttachmentParent.Demolition, roomId, text) }
+    }
+
+    fun deleteAttachment(attachment: Attachment) {
+        viewModelScope.launch { attachmentRepo.delete(uid, attachment) }
     }
 }

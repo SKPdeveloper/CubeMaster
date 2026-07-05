@@ -51,6 +51,13 @@ class SyncWorker @AssistedInject constructor(
                 db.estimateDao().upsert(entity.copy(syncState = SyncState.Synced.name))
             }
 
+            // Синхронізація вкладень
+            val pendingAttachments = db.attachmentDao().getPending()
+            for (entity in pendingAttachments) {
+                firestore.uploadAttachment(uid, entity)
+                db.attachmentDao().updateSyncState(entity.id, SyncState.Synced.name)
+            }
+
             Result.success()
         } catch (e: Exception) {
             if (runAttemptCount < 3) Result.retry() else Result.failure()

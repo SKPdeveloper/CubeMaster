@@ -22,6 +22,7 @@ fun RoomsScreen(
     onRoomClick: (String) -> Unit,
     onSummaryClick: () -> Unit,
     onEstimateClick: () -> Unit,
+    onDocumentsClick: () -> Unit,
     onBack: () -> Unit,
     viewModel: RoomsViewModel = hiltViewModel()
 ) {
@@ -39,6 +40,9 @@ fun RoomsScreen(
                     }
                     IconButton(onClick = onEstimateClick) {
                         Icon(Icons.Default.AttachMoney, contentDescription = "Кошторис")
+                    }
+                    IconButton(onClick = onDocumentsClick) {
+                        Icon(Icons.Default.Folder, contentDescription = "Документи проєкту")
                     }
                 }
             )
@@ -60,11 +64,21 @@ fun RoomsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    state.areaWarning?.let { warning ->
+                        item(key = "area_warning") { WarningCard(warning) }
+                    }
                     items(state.rooms, key = { it.room.id }) { item ->
+                        val attachments by viewModel.observeAttachments(item.room.id)
+                            .collectAsStateWithLifecycle(initialValue = emptyList())
                         RoomCard(
                             item = item,
+                            attachments = attachments,
                             onClick = { onRoomClick(item.room.id) },
-                            onDelete = { viewModel.deleteRoom(item.room.id) }
+                            onDelete = { viewModel.deleteRoom(item.room.id) },
+                            onAddPhoto = { uri -> viewModel.addPhoto(item.room.id, uri) },
+                            onAddPdf = { uri -> viewModel.addPdf(item.room.id, uri) },
+                            onAddNote = { text -> viewModel.addNote(item.room.id, text) },
+                            onDeleteAttachment = { viewModel.deleteAttachment(it) }
                         )
                     }
                 }
@@ -84,7 +98,16 @@ fun RoomsScreen(
 }
 
 @Composable
-private fun RoomCard(item: RoomUiItem, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun RoomCard(
+    item: RoomUiItem,
+    attachments: List<com.cubemaster.core.model.Attachment>,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onAddPhoto: (android.net.Uri) -> Unit,
+    onAddPdf: (android.net.Uri) -> Unit,
+    onAddNote: (String) -> Unit,
+    onDeleteAttachment: (com.cubemaster.core.model.Attachment) -> Unit
+) {
     GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -114,6 +137,14 @@ private fun RoomCard(item: RoomUiItem, onClick: () -> Unit, onDelete: () -> Unit
                 Spacer(Modifier.height(4.dp))
                 CompletionBadge(totalLayers)
             }
+            Spacer(Modifier.height(8.dp))
+            AttachmentsSection(
+                attachments = attachments,
+                onAddPhoto = onAddPhoto,
+                onAddPdf = onAddPdf,
+                onAddNote = onAddNote,
+                onDelete = onDeleteAttachment
+            )
         }
     }
 }

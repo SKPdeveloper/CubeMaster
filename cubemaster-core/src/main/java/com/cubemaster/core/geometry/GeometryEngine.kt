@@ -134,3 +134,73 @@ fun isConvexCorner(vertices: List<Vertex>, index: Int): Boolean {
 
 fun countConcaveCorners(vertices: List<Vertex>): Int =
     vertices.indices.count { !isConvexCorner(vertices, it) }
+
+// Спрощення "сирого" шляху пальця (Douglas–Peucker) до домінантних кутів.
+fun simplifyPolyline(points: List<Vertex>, epsilonM: Double): List<Vertex> {
+    if (points.size < 3) return points
+    var maxDist = 0.0
+    var index = 0
+    val first = points.first()
+    val last = points.last()
+    for (i in 1 until points.size - 1) {
+        val d = perpendicularDistance(points[i], first, last)
+        if (d > maxDist) {
+            maxDist = d
+            index = i
+        }
+    }
+    return if (maxDist > epsilonM) {
+        val left = simplifyPolyline(points.subList(0, index + 1), epsilonM)
+        val right = simplifyPolyline(points.subList(index, points.size), epsilonM)
+        left.dropLast(1) + right
+    } else {
+        listOf(first, last)
+    }
+}
+
+private fun perpendicularDistance(point: Vertex, lineStart: Vertex, lineEnd: Vertex): Double {
+    val dx = lineEnd.x - lineStart.x
+    val dy = lineEnd.y - lineStart.y
+    if (dx == 0.0 && dy == 0.0) return distance(point, lineStart)
+    val t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / (dx * dx + dy * dy)
+    val projX = lineStart.x + t * dx
+    val projY = lineStart.y + t * dy
+    return distance(point, Vertex(projX, projY))
+}
+
+// Прилипання намальованої вершини до вузла сітки з кроком stepM (метри).
+fun snapToGrid(v: Vertex, stepM: Double): Vertex =
+    Vertex(Math.round(v.x / stepM) * stepM, Math.round(v.y / stepM) * stepM)
+
+// Обернена до buildPolygon: реальні вершини (в будь-якому напрямку обходу) -> ребра з довжиною і внутрішнім кутом.
+// Кути коректно рахуються і для угнутих вершин (>180°) незалежно від напрямку обходу вхідного списку.
+fun verticesToEdges(vertices: List<Vertex>): List<Edge> {
+    val n = vertices.size
+    require(n >= 3) { "Полігон повинен мати щонайменше 3 вершини" }
+
+    var area2 = 0.0
+    for (i in 0 until n) {
+        val j = (i + 1) % n
+        area2 += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
+    }
+    val ordered = if (area2 < 0) vertices.reversed() else vertices
+
+    return ordered.indices.map { i ->
+        val prev = ordered[(i - 1 + n) % n]
+        val curr = ordered[i]
+        val next = ordered[(i + 1) % n]
+
+        val ax = curr.x - prev.x
+        val ay = curr.y - prev.y
+        val bx = next.x - curr.x
+        val by = next.y - curr.y
+
+        val crossAB = ax * by - ay * bx
+        val dotAB = ax * bx + ay * by
+        val exteriorTurnDeg = Math.toDegrees(atan2(crossAB, dotAB))
+        val interiorAngleDeg = 180.0 - exteriorTurnDeg
+
+        val lengthMm = Math.round(distance(curr, next) * 1000.0).toInt()
+        Edge(lengthMm, interiorAngleDeg)
+    }
+}

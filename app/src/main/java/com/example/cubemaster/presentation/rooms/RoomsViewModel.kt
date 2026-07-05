@@ -1,9 +1,13 @@
 package com.example.cubemaster.presentation.rooms
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cubemaster.core.model.*
+import com.example.cubemaster.data.remote.AuthRepository
+import com.example.cubemaster.domain.presetLayersFor
+import com.example.cubemaster.domain.repository.AttachmentRepository
 import com.example.cubemaster.domain.repository.ProjectRepository
 import com.example.cubemaster.domain.repository.RoomRepository
 import com.example.cubemaster.domain.repository.SurfaceRepository
@@ -23,18 +27,24 @@ data class RoomsUiState(
     val project: Project? = null,
     val rooms: List<RoomUiItem> = emptyList(),
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val areaWarning: String? = null
 )
+
+private const val AREA_MISMATCH_TOLERANCE = 0.15
 
 @HiltViewModel
 class RoomsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val projectRepo: ProjectRepository,
     private val roomRepo: RoomRepository,
-    private val surfaceRepo: SurfaceRepository
+    private val surfaceRepo: SurfaceRepository,
+    private val attachmentRepo: AttachmentRepository,
+    private val auth: AuthRepository
 ) : ViewModel() {
 
     private val projectId: String = savedStateHandle["projectId"]!!
+    private val uid: String get() = auth.currentUserId ?: ""
     private val _state = MutableStateFlow(RoomsUiState())
     val state: StateFlow<RoomsUiState> = _state.asStateFlow()
 
@@ -42,6 +52,7 @@ class RoomsViewModel @Inject constructor(
         viewModelScope.launch {
             projectRepo.observeProject(projectId).collect { project ->
                 _state.update { it.copy(project = project) }
+                updateAreaWarning()
             }
         }
         viewModelScope.launch {
@@ -58,8 +69,24 @@ class RoomsViewModel @Inject constructor(
                     RoomUiItem(room, areaM2, surfaces)
                 }
                 _state.update { it.copy(rooms = items, isLoading = false) }
+                updateAreaWarning()
             }
         }
+    }
+
+    private fun updateAreaWarning() {
+        val s = _state.value
+        val documented = s.project?.documentedAreaM2
+        if (documented == null || documented <= 0.0 || s.rooms.isEmpty()) {
+            _state.update { it.copy(areaWarning = null) }
+            return
+        }
+        val sumOfRooms = s.rooms.sumOf { it.floorAreaM2 }
+        val relativeDiff = kotlin.math.abs(sumOfRooms - documented) / documented
+        val warning = if (relativeDiff > AREA_MISMATCH_TOLERANCE) {
+            "Сума площ кімнат (${String.format("%.2f", sumOfRooms)} м²) суттєво відрізняється від площі за документами (${String.format("%.2f", documented)} м²) — перевірте виміри."
+        } else null
+        _state.update { it.copy(areaWarning = warning) }
     }
 
     fun createRoom(name: String, roomType: RoomType) {
@@ -76,9 +103,9 @@ class RoomsViewModel @Inject constructor(
                     roomType = roomType,
                     sortOrder = sortOrder
                 )
-                // Автоматично створити поверхні для нової кімнати
-                surfaceRepo.upsertSurface(Surface(UUID.randomUUID().toString(), room.id, SurfaceKind.Floor, null, emptyList()))
-                surfaceRepo.upsertSurface(Surface(UUID.randomUUID().toString(), room.id, SurfaceKind.Ceiling, null, emptyList()))
+                // Автоматично створити поверхні для нової кімнати, підставивши рекомендований пресет шарів (якщо є для цього типу приміщення)
+                surfaceRepo.upsertSurface(Surface(UUID.randomUUID().toString(), room.id, SurfaceKind.Floor, null, presetLayersFor(roomType, SurfaceKind.Floor)))
+                surfaceRepo.upsertSurface(Surface(UUID.randomUUID().toString(), room.id, SurfaceKind.Ceiling, null, presetLayersFor(roomType, SurfaceKind.Ceiling)))
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
             }
@@ -92,4 +119,34 @@ class RoomsViewModel @Inject constructor(
     }
 
     fun clearError() = _state.update { it.copy(error = null) }
+
+    fun observeAttachments(roomId: String) = attachmentRepo.observeForParent(AttachmentParent.Room, roomId)
+
+    fun addPhoto(roomId: String, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPhoto(uid, projectId, roomId, AttachmentParent.Room, roomId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити фото: ${e.message}") }
+            }
+        }
+    }
+
+    fun addPdf(roomId: String, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPdf(uid, projectId, roomId, AttachmentParent.Room, roomId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити PDF: ${e.message}") }
+            }
+        }
+    }
+
+    fun addNote(roomId: String, text: String) {
+        viewModelScope.launch { attachmentRepo.addNote(projectId, roomId, AttachmentParent.Room, roomId, text) }
+    }
+
+    fun deleteAttachment(attachment: Attachment) {
+        viewModelScope.launch { attachmentRepo.delete(uid, attachment) }
+    }
 }

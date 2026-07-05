@@ -98,4 +98,55 @@ class GeometryEngineTest {
         val net = wallAreaNet(gross, openings)
         assertEquals(4.0 * 2.7 - 1.2 * 1.4, net, 0.01)
     }
+
+    @Test
+    fun `simplifyPolyline прибирає зайві точки на прямій лінії прямокутника`() {
+        val points = listOf(
+            Vertex(0.0, 0.0), Vertex(1.0, 0.0), Vertex(2.0, 0.0), Vertex(3.0, 0.0),
+            Vertex(3.0, 1.0), Vertex(3.0, 2.0),
+            Vertex(2.0, 2.0), Vertex(1.0, 2.0), Vertex(0.0, 2.0),
+            Vertex(0.0, 1.0), Vertex(0.0, 0.0)
+        )
+        val simplified = simplifyPolyline(points, epsilonM = 0.01)
+        // Замкнутий прямокутник спрощується до 5 точок (4 кути + повернення до першої)
+        assertEquals(5, simplified.size)
+    }
+
+    @Test
+    fun `snapToGrid округлює до найближчого вузла сітки 0,1 м`() {
+        val v = snapToGrid(Vertex(1.24, 2.97), stepM = 0.1)
+        assertEquals(1.2, v.x, 0.001)
+        assertEquals(3.0, v.y, 0.001)
+    }
+
+    @Test
+    fun `verticesToEdges для квадрата 3x3 м дає 4 ребра по 3000мм і кути 90 град`() {
+        val vertices = listOf(
+            Vertex(0.0, 0.0), Vertex(3.0, 0.0), Vertex(3.0, 3.0), Vertex(0.0, 3.0)
+        )
+        val edges = verticesToEdges(vertices)
+        assertEquals(4, edges.size)
+        edges.forEach { edge ->
+            assertEquals(3000, edge.lengthMm)
+            assertEquals(90.0, edge.interiorAngleDeg, 0.01)
+        }
+        // Прогін назад через buildPolygon має дати нульову нев'язку
+        val result = buildPolygon(edges)
+        assertEquals(ClosureStatus.Ok, result.status)
+        assertEquals(9.0, polygonAreaM2(result.vertices), 0.01)
+    }
+
+    @Test
+    fun `verticesToEdges коректно рахує угнутий кут Г-подібної кімнати`() {
+        // L-подібна форма, угнутий кут у (1,1) — інтерʼєрний кут має бути 270°
+        val vertices = listOf(
+            Vertex(0.0, 0.0), Vertex(2.0, 0.0), Vertex(2.0, 1.0),
+            Vertex(1.0, 1.0), Vertex(1.0, 2.0), Vertex(0.0, 2.0)
+        )
+        val edges = verticesToEdges(vertices)
+        assertEquals(6, edges.size)
+        val reflexCount = edges.count { it.interiorAngleDeg > 180.0 }
+        assertEquals(1, reflexCount)
+        assertEquals(270.0, edges.first { it.interiorAngleDeg > 180.0 }.interiorAngleDeg, 0.1)
+    }
 }

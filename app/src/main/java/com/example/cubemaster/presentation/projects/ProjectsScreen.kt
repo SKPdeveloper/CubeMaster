@@ -30,6 +30,7 @@ fun ProjectsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var projectToEdit by remember { mutableStateOf<Project?>(null) }
     var projectToDelete by remember { mutableStateOf<Project?>(null) }
 
     Scaffold(
@@ -68,6 +69,7 @@ fun ProjectsScreen(
                             project = project,
                             onClick = { onProjectClick(project.id) },
                             onSummary = { onSummaryClick(project.id) },
+                            onEdit = { projectToEdit = project },
                             onDelete = { projectToDelete = project }
                         )
                     }
@@ -77,12 +79,29 @@ fun ProjectsScreen(
     }
 
     if (showCreateDialog) {
-        CreateProjectDialog(
-            onConfirm = { title, address ->
-                viewModel.createProject(title, address)
+        ProjectDialog(
+            title = "Новий проєкт",
+            confirmLabel = "Створити",
+            onConfirm = { title, address, area ->
+                viewModel.createProject(title, address, area)
                 showCreateDialog = false
             },
             onDismiss = { showCreateDialog = false }
+        )
+    }
+
+    projectToEdit?.let { project ->
+        ProjectDialog(
+            title = "Редагувати проєкт",
+            confirmLabel = "Зберегти",
+            initialTitle = project.title,
+            initialAddress = project.address.orEmpty(),
+            initialAreaM2 = project.documentedAreaM2,
+            onConfirm = { title, address, area ->
+                viewModel.updateProject(project, title, address, area)
+                projectToEdit = null
+            },
+            onDismiss = { projectToEdit = null }
         )
     }
 
@@ -115,6 +134,7 @@ private fun ProjectCard(
     project: Project,
     onClick: () -> Unit,
     onSummary: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
@@ -136,9 +156,19 @@ private fun ProjectCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    project.documentedAreaM2?.let { area ->
+                        Text(
+                            text = "Площа за документами: ${String.format("%.2f", area)} м²",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Row {
                     SyncIndicator(project.syncState)
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Default.Edit, contentDescription = "Редагувати", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     IconButton(onClick = onSummary) {
                         Icon(Icons.Default.Calculate, contentDescription = "Зведення", tint = MaterialTheme.colorScheme.primary)
                     }
@@ -178,18 +208,27 @@ private fun SyncIndicator(syncState: SyncState) {
 }
 
 @Composable
-private fun CreateProjectDialog(onConfirm: (String, String?) -> Unit, onDismiss: () -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
+private fun ProjectDialog(
+    title: String,
+    confirmLabel: String,
+    onConfirm: (String, String?, Double?) -> Unit,
+    onDismiss: () -> Unit,
+    initialTitle: String = "",
+    initialAddress: String = "",
+    initialAreaM2: Double? = null
+) {
+    var titleValue by remember { mutableStateOf(initialTitle) }
+    var address by remember { mutableStateOf(initialAddress) }
+    var areaM2 by remember { mutableStateOf(initialAreaM2?.let { String.format("%.2f", it) } ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Новий проєкт") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
+                    value = titleValue,
+                    onValueChange = { titleValue = it },
                     label = { Text("Назва об'єкта") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -201,13 +240,26 @@ private fun CreateProjectDialog(onConfirm: (String, String?) -> Unit, onDismiss:
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = areaM2,
+                    onValueChange = { areaM2 = it },
+                    label = { Text("Площа за документами, м² (необов'язково)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(title.trim(), address.trim().takeIf { it.isNotEmpty() }) },
-                enabled = title.isNotBlank()
-            ) { Text("Створити") }
+                onClick = {
+                    onConfirm(
+                        titleValue.trim(),
+                        address.trim().takeIf { it.isNotEmpty() },
+                        areaM2.trim().replace(",", ".").toDoubleOrNull()
+                    )
+                },
+                enabled = titleValue.isNotBlank()
+            ) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Скасувати") } }
     )

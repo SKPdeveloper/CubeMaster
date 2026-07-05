@@ -108,21 +108,64 @@ fun GeometryScreen(
 
 @Composable
 private fun GeometryTab(state: GeometryUiState, viewModel: GeometryViewModel) {
-    // Перемикач прямокутник/полігон
+    var drawMode by remember { mutableStateOf(false) }
+
+    // Перемикач прямокутник/полігон/малювати
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
-            selected = state.isRectangle,
-            onClick = { viewModel.setRectangleMode(true) },
+            selected = state.isRectangle && !drawMode,
+            onClick = { drawMode = false; viewModel.setRectangleMode(true) },
             label = { Text("Прямокутник") }
         )
         FilterChip(
-            selected = !state.isRectangle,
-            onClick = { viewModel.setRectangleMode(false) },
+            selected = !state.isRectangle && !drawMode,
+            onClick = { drawMode = false; viewModel.setRectangleMode(false) },
             label = { Text("Довільний контур") }
         )
+        FilterChip(
+            selected = drawMode,
+            onClick = { drawMode = true },
+            label = { Text("Малювати") }
+        )
+    }
+
+    if (drawMode) {
+        var useFloorplan by remember { mutableStateOf(false) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = !useFloorplan,
+                onClick = { useFloorplan = false },
+                label = { Text("Порожній аркуш") }
+            )
+            FilterChip(
+                selected = useFloorplan,
+                onClick = { useFloorplan = true },
+                label = { Text("За фото плану") }
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        if (useFloorplan) {
+            FloorplanDrawFlow(
+                onShapeConfirmed = { edges ->
+                    viewModel.applyDrawnEdges(edges)
+                    drawMode = false
+                },
+                onImagePicked = { uri -> viewModel.addFloorplanPhoto(uri) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            FreehandDrawCanvas(
+                onShapeConfirmed = { edges ->
+                    viewModel.applyDrawnEdges(edges)
+                    drawMode = false
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        return
     }
 
     if (state.isRectangle) {
@@ -221,25 +264,37 @@ private fun SurfacesTab(state: GeometryUiState, onLayersClick: (String) -> Unit,
             modifier = Modifier.fillMaxWidth(),
             onClick = { onLayersClick(surface.id) }
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = surfaceKindLabel(surface.kind, surface.wallEdgeIndex),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    CompletionBadge(surface.layers.size)
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = surfaceKindLabel(surface.kind, surface.wallEdgeIndex),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        CompletionBadge(surface.layers.size)
+                    }
+                    if (surface.layers.isNotEmpty()) {
+                        LayerStackIndicator(
+                            layers = surface.layers,
+                            modifier = Modifier.width(80.dp).height(24.dp)
+                        )
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null)
                 }
-                if (surface.layers.isNotEmpty()) {
-                    LayerStackIndicator(
-                        layers = surface.layers,
-                        modifier = Modifier.width(80.dp).height(24.dp)
-                    )
-                }
-                Icon(Icons.Default.ChevronRight, contentDescription = null)
+                Spacer(Modifier.height(8.dp))
+                val attachments by viewModel.observeAttachments(surface.id)
+                    .collectAsStateWithLifecycle(initialValue = emptyList())
+                AttachmentsSection(
+                    attachments = attachments,
+                    onAddPhoto = { uri -> viewModel.addPhoto(surface.id, uri) },
+                    onAddPdf = { uri -> viewModel.addPdf(surface.id, uri) },
+                    onAddNote = { text -> viewModel.addNote(surface.id, text) },
+                    onDelete = { viewModel.deleteAttachment(it) }
+                )
             }
         }
     }

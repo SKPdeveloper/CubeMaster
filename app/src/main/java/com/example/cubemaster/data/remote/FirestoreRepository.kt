@@ -26,6 +26,8 @@ class FirestoreRepository @Inject constructor(
         roomsCol(uid, projectId).document(roomId).collection("demolitionTasks")
     private fun estimatesCol(uid: String, projectId: String) =
         projectsCol(uid).document(projectId).collection("estimates")
+    private fun attachmentsCol(uid: String, projectId: String) =
+        projectsCol(uid).document(projectId).collection("attachments")
 
     // ---- Projects ----
 
@@ -134,6 +136,28 @@ class FirestoreRepository @Inject constructor(
             "updatedAt" to System.currentTimeMillis()
         )
         estimatesCol(uid, estimate.projectId).document(estimate.id).set(data).await()
+    }
+
+    // ---- Attachments ----
+
+    suspend fun uploadAttachment(uid: String, attachment: com.example.cubemaster.data.local.entity.AttachmentEntity) {
+        val data = mapOf(
+            "id" to attachment.id,
+            "projectId" to attachment.projectId,
+            "roomId" to attachment.roomId,
+            "parentType" to attachment.parentType,
+            "parentId" to attachment.parentId,
+            "kind" to attachment.kind,
+            "fileUrl" to attachment.fileUrl,
+            "textContent" to attachment.textContent,
+            "mimeType" to attachment.mimeType,
+            "createdAt" to attachment.createdAt
+        )
+        attachmentsCol(uid, attachment.projectId).document(attachment.id).set(data).await()
+    }
+
+    suspend fun deleteAttachment(uid: String, projectId: String, attachmentId: String) {
+        attachmentsCol(uid, projectId).document(attachmentId).delete().await()
     }
 
     // ---- Cloud Functions ----

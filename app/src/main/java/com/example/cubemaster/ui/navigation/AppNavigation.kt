@@ -3,9 +3,9 @@ package com.example.cubemaster.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation.*
 import androidx.navigation.compose.*
-import com.example.cubemaster.presentation.auth.AuthScreen
 import com.example.cubemaster.presentation.catalog.CatalogScreen
 import com.example.cubemaster.presentation.demolition.DemolitionScreen
+import com.example.cubemaster.presentation.documents.ProjectDocumentsScreen
 import com.example.cubemaster.presentation.estimate.EstimateScreen
 import com.example.cubemaster.presentation.geometry.GeometryScreen
 import com.example.cubemaster.presentation.layers.LayersScreen
@@ -15,7 +15,6 @@ import com.example.cubemaster.presentation.rooms.RoomsScreen
 import com.example.cubemaster.presentation.summary.SummaryScreen
 
 sealed class Screen(val route: String) {
-    object Auth : Screen("auth")
     object Projects : Screen("projects")
     object Rooms : Screen("rooms/{projectId}") {
         fun createRoute(projectId: String) = "rooms/$projectId"
@@ -37,23 +36,16 @@ sealed class Screen(val route: String) {
     }
     object Catalog : Screen("catalog")
     object Profile : Screen("profile")
+    object ProjectDocuments : Screen("project-documents/{projectId}") {
+        fun createRoute(projectId: String) = "project-documents/$projectId"
+    }
 }
 
 @Composable
-fun AppNavigation(startDestination: String = Screen.Auth.route) {
+fun AppNavigation(startDestination: String = Screen.Projects.route) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = startDestination) {
-
-        composable(Screen.Auth.route) {
-            AuthScreen(
-                onAuthenticated = {
-                    navController.navigate(Screen.Projects.route) {
-                        popUpTo(Screen.Auth.route) { inclusive = true }
-                    }
-                }
-            )
-        }
 
         composable(Screen.Projects.route) {
             ProjectsScreen(
@@ -83,6 +75,9 @@ fun AppNavigation(startDestination: String = Screen.Auth.route) {
                 },
                 onEstimateClick = {
                     navController.navigate(Screen.Estimate.createRoute(projectId))
+                },
+                onDocumentsClick = {
+                    navController.navigate(Screen.ProjectDocuments.createRoute(projectId))
                 },
                 onBack = { navController.popBackStack() }
             )
@@ -159,14 +154,14 @@ fun AppNavigation(startDestination: String = Screen.Auth.route) {
         }
 
         composable(Screen.Profile.route) {
-            ProfileScreen(
-                onBack = { navController.popBackStack() },
-                onSignOut = {
-                    navController.navigate(Screen.Auth.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            )
+            ProfileScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            Screen.ProjectDocuments.route,
+            arguments = listOf(navArgument("projectId") { type = NavType.StringType })
+        ) {
+            ProjectDocumentsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

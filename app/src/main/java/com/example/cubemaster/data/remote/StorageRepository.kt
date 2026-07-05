@@ -11,9 +11,16 @@ import javax.inject.Singleton
 class StorageRepository @Inject constructor(
     private val storage: FirebaseStorage
 ) {
-    suspend fun uploadRoomPhoto(uid: String, projectId: String, roomId: String, uri: Uri): String {
+    suspend fun uploadAttachment(
+        uid: String,
+        projectId: String,
+        parentType: String,
+        parentId: String,
+        uri: Uri,
+        extension: String
+    ): String {
         val ref = storage.reference
-            .child("users/$uid/projects/$projectId/rooms/$roomId/${UUID.randomUUID()}.jpg")
+            .child("users/$uid/projects/$projectId/attachments/$parentType/$parentId/${UUID.randomUUID()}.$extension")
         ref.putFile(uri).await()
         return ref.downloadUrl.await().toString()
     }

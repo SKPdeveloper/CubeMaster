@@ -181,6 +181,7 @@ class LayersViewModel @Inject constructor(
             LayerType.FlooringTile, LayerType.FlooringLinoleum -> calculateFlooring(areaM2, layer.layerType)
             LayerType.WallPaint -> calculatePaint(areaM2)
             LayerType.WallDrywall -> calculateDrywall(areaM2)
+            LayerType.WallTile -> calculateWallTile(areaM2)
             else -> LayerResult(0.0, 0)
         }
         return LayerCalculatedItem(

@@ -85,7 +85,6 @@ dependencies {
     implementation(libs.firebase.remote.config.ktx)
     implementation(libs.firebase.crashlytics.ktx)
     implementation(libs.firebase.perf.ktx)
-    implementation(libs.play.services.auth)
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)

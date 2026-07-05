@@ -1,10 +1,14 @@
 package com.example.cubemaster.presentation.geometry
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cubemaster.core.geometry.*
 import com.cubemaster.core.model.*
+import com.example.cubemaster.data.remote.AuthRepository
+import com.example.cubemaster.domain.presetLayersFor
+import com.example.cubemaster.domain.repository.AttachmentRepository
 import com.example.cubemaster.domain.repository.RoomRepository
 import com.example.cubemaster.domain.repository.SurfaceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,10 +44,13 @@ data class GeometryUiState(
 class GeometryViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val roomRepo: RoomRepository,
-    private val surfaceRepo: SurfaceRepository
+    private val surfaceRepo: SurfaceRepository,
+    private val attachmentRepo: AttachmentRepository,
+    private val auth: AuthRepository
 ) : ViewModel() {
 
     private val roomId: String = savedStateHandle["roomId"]!!
+    private val uid: String get() = auth.currentUserId ?: ""
     private val _state = MutableStateFlow(GeometryUiState())
     val state: StateFlow<GeometryUiState> = _state.asStateFlow()
 
@@ -104,6 +111,17 @@ class GeometryViewModel @Inject constructor(
             val edges = s.edges.toMutableList()
             if (index in edges.indices) edges[index] = edges[index].copy(angleDeg = v)
             s.copy(edges = edges, hasUnsavedChanges = true)
+        }
+        recalculate()
+    }
+
+    fun applyDrawnEdges(edges: List<Edge>) {
+        _state.update {
+            it.copy(
+                isRectangle = false,
+                edges = edges.map { e -> EdgeInput(e.lengthMm.toString(), String.format("%.1f", e.interiorAngleDeg)) },
+                hasUnsavedChanges = true
+            )
         }
         recalculate()
     }
@@ -210,8 +228,54 @@ class GeometryViewModel @Inject constructor(
     fun ensureSurfaceExists(kind: SurfaceKind): Surface {
         val existing = _state.value.surfaces.firstOrNull { it.kind == kind }
         if (existing != null) return existing
-        val surface = Surface(UUID.randomUUID().toString(), roomId, kind, null, emptyList())
+        val roomType = _state.value.room?.roomType
+        val layers = if (roomType != null) presetLayersFor(roomType, kind) else emptyList()
+        val surface = Surface(UUID.randomUUID().toString(), roomId, kind, null, layers)
         viewModelScope.launch { surfaceRepo.upsertSurface(surface) }
         return surface
+    }
+
+    fun addFloorplanPhoto(uri: Uri) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPhoto(uid, projectId, roomId, AttachmentParent.Room, roomId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити план: ${e.message}") }
+            }
+        }
+    }
+
+    fun observeAttachments(surfaceId: String) = attachmentRepo.observeForParent(AttachmentParent.Surface, surfaceId)
+
+    fun addPhoto(surfaceId: String, uri: Uri) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPhoto(uid, projectId, roomId, AttachmentParent.Surface, surfaceId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити фото: ${e.message}") }
+            }
+        }
+    }
+
+    fun addPdf(surfaceId: String, uri: Uri) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepo.addPdf(uid, projectId, roomId, AttachmentParent.Surface, surfaceId, uri)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Не вдалось завантажити PDF: ${e.message}") }
+            }
+        }
+    }
+
+    fun addNote(surfaceId: String, text: String) {
+        val projectId = _state.value.room?.projectId ?: return
+        viewModelScope.launch { attachmentRepo.addNote(projectId, roomId, AttachmentParent.Surface, surfaceId, text) }
+    }
+
+    fun deleteAttachment(attachment: Attachment) {
+        viewModelScope.launch { attachmentRepo.delete(uid, attachment) }
     }
 }

@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cubemaster.data.local.dao.CompanyProfileDao
 import com.example.cubemaster.data.local.entity.CompanyProfileEntity
-import com.example.cubemaster.data.remote.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -14,19 +13,15 @@ data class ProfileUiState(
     val companyName: String = "",
     val address: String = "",
     val phone: String = "",
-    val email: String = "",
-    val firebaseEmail: String? = null
+    val email: String = ""
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val profileDao: CompanyProfileDao,
-    private val auth: AuthRepository
+    private val profileDao: CompanyProfileDao
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ProfileUiState(
-        firebaseEmail = auth.currentUser?.email
-    ))
+    private val _state = MutableStateFlow(ProfileUiState())
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
 
     init {
@@ -62,6 +57,4 @@ class ProfileViewModel @Inject constructor(
             )
         }
     }
-
-    fun signOut() = auth.signOut()
 }

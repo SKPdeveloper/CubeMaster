@@ -67,7 +67,6 @@ firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messa
 firebase-remote-config-ktx = { group = "com.google.firebase", name = "firebase-config-ktx" }
 firebase-crashlytics-ktx = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
 firebase-perf-ktx = { group = "com.google.firebase", name = "firebase-perf-ktx" }
-play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version = "21.3.0" }
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }

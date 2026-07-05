@@ -26,6 +26,7 @@ object EntityMapper {
             ownerId = e.ownerId,
             title = e.title,
             address = e.address,
+            documentedAreaM2 = e.documentedAreaM2,
             createdAt = java.time.Instant.ofEpochMilli(e.createdAt),
             updatedAt = java.time.Instant.ofEpochMilli(e.updatedAt),
             syncState = SyncState.valueOf(e.syncState)
@@ -37,6 +38,7 @@ object EntityMapper {
             ownerId = d.ownerId,
             title = d.title,
             address = d.address,
+            documentedAreaM2 = d.documentedAreaM2,
             createdAt = d.createdAt.toEpochMilli(),
             updatedAt = d.updatedAt.toEpochMilli(),
             syncState = d.syncState.name
@@ -104,6 +106,36 @@ object EntityMapper {
             kind = d.kind.name,
             wallEdgeIndex = d.wallEdgeIndex,
             layersJson = encodeLayers(d.layers, json)
+        )
+
+    fun mapToAttachmentDomain(e: com.example.cubemaster.data.local.entity.AttachmentEntity) =
+        Attachment(
+            id = e.id,
+            projectId = e.projectId,
+            roomId = e.roomId,
+            parentType = AttachmentParent.valueOf(e.parentType),
+            parentId = e.parentId,
+            kind = AttachmentKind.valueOf(e.kind),
+            fileUrl = e.fileUrl,
+            textContent = e.textContent,
+            mimeType = e.mimeType,
+            createdAt = e.createdAt,
+            syncState = SyncState.valueOf(e.syncState)
+        )
+
+    fun mapToAttachmentEntity(d: Attachment) =
+        com.example.cubemaster.data.local.entity.AttachmentEntity(
+            id = d.id,
+            projectId = d.projectId,
+            roomId = d.roomId,
+            parentType = d.parentType.name,
+            parentId = d.parentId,
+            kind = d.kind.name,
+            fileUrl = d.fileUrl,
+            textContent = d.textContent,
+            mimeType = d.mimeType,
+            createdAt = d.createdAt,
+            syncState = d.syncState.name
         )
 
     private fun parseEdges(jsonStr: String, json: Json): List<Edge> {

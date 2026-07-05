@@ -90,6 +90,40 @@ interface DemolitionTaskDao {
 }
 
 @Dao
+interface AttachmentDao {
+
+    @Query("SELECT * FROM attachments WHERE parentType = :parentType AND parentId = :parentId ORDER BY createdAt ASC")
+    fun observeByParent(parentType: String, parentId: String): Flow<List<AttachmentEntity>>
+
+    @Query("SELECT * FROM attachments WHERE projectId = :projectId AND parentType = 'Project' ORDER BY createdAt ASC")
+    fun observeProjectLevel(projectId: String): Flow<List<AttachmentEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(attachment: AttachmentEntity)
+
+    @Query("SELECT * FROM attachments WHERE id = :id")
+    suspend fun getById(id: String): AttachmentEntity?
+
+    @Query("DELETE FROM attachments WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM attachments WHERE parentType = :parentType AND parentId = :parentId")
+    suspend fun deleteByParent(parentType: String, parentId: String)
+
+    @Query("DELETE FROM attachments WHERE roomId = :roomId")
+    suspend fun deleteByRoom(roomId: String)
+
+    @Query("DELETE FROM attachments WHERE projectId = :projectId")
+    suspend fun deleteByProject(projectId: String)
+
+    @Query("SELECT * FROM attachments WHERE syncState != 'Synced'")
+    suspend fun getPending(): List<AttachmentEntity>
+
+    @Query("UPDATE attachments SET syncState = :state WHERE id = :id")
+    suspend fun updateSyncState(id: String, state: String)
+}
+
+@Dao
 interface EstimateDao {
 
     @Query("SELECT * FROM estimates WHERE projectId = :projectId ORDER BY createdAt DESC")

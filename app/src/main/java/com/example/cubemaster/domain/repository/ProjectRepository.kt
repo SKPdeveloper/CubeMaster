@@ -4,6 +4,7 @@ import com.cubemaster.core.model.*
 import com.example.cubemaster.data.local.AppDatabase
 import com.example.cubemaster.data.local.converter.EntityMapper
 import com.example.cubemaster.data.remote.FirestoreRepository
+import com.example.cubemaster.data.remote.StorageRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 class ProjectRepository @Inject constructor(
     private val db: AppDatabase,
     private val firestore: FirestoreRepository,
-    private val json: Json
+    private val json: Json,
+    private val attachmentRepo: AttachmentRepository
 ) {
     fun observeProjects(ownerId: String): Flow<List<Project>> =
         db.projectDao().observeAll(ownerId).map { list ->
@@ -26,13 +28,14 @@ class ProjectRepository @Inject constructor(
     fun observeProject(id: String): Flow<Project?> =
         db.projectDao().observeById(id).map { it?.let { EntityMapper.mapToProjectDomain(it) } }
 
-    suspend fun createProject(ownerId: String, title: String, address: String?): Project {
+    suspend fun createProject(ownerId: String, title: String, address: String?, documentedAreaM2: Double? = null): Project {
         val now = Instant.now()
         val project = Project(
             id = UUID.randomUUID().toString(),
             ownerId = ownerId,
             title = title,
             address = address,
+            documentedAreaM2 = documentedAreaM2,
             createdAt = now,
             updatedAt = now
         )
@@ -47,13 +50,15 @@ class ProjectRepository @Inject constructor(
 
     suspend fun deleteProject(id: String) {
         db.projectDao().deleteById(id)
+        attachmentRepo.deleteAllForProject(id)
     }
 }
 
 @Singleton
 class RoomRepository @Inject constructor(
     private val db: AppDatabase,
-    private val json: Json
+    private val json: Json,
+    private val attachmentRepo: AttachmentRepository
 ) {
     fun observeRooms(projectId: String): Flow<List<Room>> =
         db.roomDao().observeByProject(projectId).map { list ->
@@ -94,6 +99,7 @@ class RoomRepository @Inject constructor(
 
     suspend fun deleteRoom(id: String) {
         db.roomDao().deleteById(id)
+        attachmentRepo.deleteAllForRoom(id)
     }
 
     fun observeOpenings(roomId: String): Flow<List<Opening>> =
@@ -133,7 +139,8 @@ class RoomRepository @Inject constructor(
 @Singleton
 class SurfaceRepository @Inject constructor(
     private val db: AppDatabase,
-    private val json: Json
+    private val json: Json,
+    private val attachmentRepo: AttachmentRepository
 ) {
     fun observeSurfaces(roomId: String): Flow<List<Surface>> =
         db.surfaceDao().observeByRoom(roomId).map { list ->
@@ -146,6 +153,7 @@ class SurfaceRepository @Inject constructor(
 
     suspend fun deleteSurface(id: String) {
         db.surfaceDao().deleteById(id)
+        attachmentRepo.deleteAllForParent(AttachmentParent.Surface, id)
     }
 }
 
@@ -228,6 +236,101 @@ class MaterialRepository @Inject constructor(
 
     suspend fun upsertPrice(entry: com.example.cubemaster.data.local.entity.PriceEntryEntity) {
         db.priceEntryDao().upsert(entry)
+    }
+}
+
+@Singleton
+class AttachmentRepository @Inject constructor(
+    private val db: AppDatabase,
+    private val storage: StorageRepository,
+    private val firestore: FirestoreRepository
+) {
+    fun observeForParent(parentType: AttachmentParent, parentId: String): Flow<List<Attachment>> =
+        db.attachmentDao().observeByParent(parentType.name, parentId).map { list ->
+            list.map { EntityMapper.mapToAttachmentDomain(it) }
+        }
+
+    fun observeProjectDocuments(projectId: String): Flow<List<Attachment>> =
+        db.attachmentDao().observeProjectLevel(projectId).map { list ->
+            list.map { EntityMapper.mapToAttachmentDomain(it) }
+        }
+
+    suspend fun addPhoto(
+        uid: String, projectId: String, roomId: String?,
+        parentType: AttachmentParent, parentId: String, uri: android.net.Uri
+    ): Attachment = addFile(uid, projectId, roomId, parentType, parentId, uri, "jpg", "image/jpeg", AttachmentKind.Photo)
+
+    suspend fun addPdf(
+        uid: String, projectId: String, roomId: String?,
+        parentType: AttachmentParent, parentId: String, uri: android.net.Uri
+    ): Attachment = addFile(uid, projectId, roomId, parentType, parentId, uri, "pdf", "application/pdf", AttachmentKind.Pdf)
+
+    private suspend fun addFile(
+        uid: String, projectId: String, roomId: String?,
+        parentType: AttachmentParent, parentId: String, uri: android.net.Uri,
+        extension: String, mimeType: String, kind: AttachmentKind
+    ): Attachment {
+        val fileUrl = storage.uploadAttachment(uid, projectId, parentType.name, parentId, uri, extension)
+        val attachment = Attachment(
+            id = UUID.randomUUID().toString(),
+            projectId = projectId,
+            roomId = roomId,
+            parentType = parentType,
+            parentId = parentId,
+            kind = kind,
+            fileUrl = fileUrl,
+            textContent = null,
+            mimeType = mimeType,
+            createdAt = System.currentTimeMillis(),
+            syncState = SyncState.PendingUpload
+        )
+        db.attachmentDao().upsert(EntityMapper.mapToAttachmentEntity(attachment))
+        return attachment
+    }
+
+    suspend fun addNote(
+        projectId: String, roomId: String?,
+        parentType: AttachmentParent, parentId: String, text: String
+    ): Attachment {
+        val attachment = Attachment(
+            id = UUID.randomUUID().toString(),
+            projectId = projectId,
+            roomId = roomId,
+            parentType = parentType,
+            parentId = parentId,
+            kind = AttachmentKind.Note,
+            fileUrl = null,
+            textContent = text,
+            mimeType = null,
+            createdAt = System.currentTimeMillis(),
+            syncState = SyncState.PendingUpload
+        )
+        db.attachmentDao().upsert(EntityMapper.mapToAttachmentEntity(attachment))
+        return attachment
+    }
+
+    suspend fun delete(uid: String, attachment: Attachment) {
+        db.attachmentDao().deleteById(attachment.id)
+        attachment.fileUrl?.let { url ->
+            try { storage.deleteFile(url) } catch (_: Exception) { }
+        }
+        if (attachment.syncState == SyncState.Synced) {
+            try { firestore.deleteAttachment(uid, attachment.projectId, attachment.id) } catch (_: Exception) { }
+        }
+    }
+
+    // Каскадне видалення при видаленні батьківської сутності — тільки локально
+    // (узгоджено з рештою проєкту, де видалення в хмару взагалі не синхронізується).
+    suspend fun deleteAllForParent(parentType: AttachmentParent, parentId: String) {
+        db.attachmentDao().deleteByParent(parentType.name, parentId)
+    }
+
+    suspend fun deleteAllForRoom(roomId: String) {
+        db.attachmentDao().deleteByRoom(roomId)
+    }
+
+    suspend fun deleteAllForProject(projectId: String) {
+        db.attachmentDao().deleteByProject(projectId)
     }
 }
 

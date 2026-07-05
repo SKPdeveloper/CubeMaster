@@ -12,6 +12,7 @@ data class ProjectEntity(
     val ownerId: String,
     val title: String,
     val address: String?,
+    val documentedAreaM2: Double?,
     val createdAt: Long,
     val updatedAt: Long,
     val syncState: String = SyncState.PendingUpload.name
@@ -114,6 +115,27 @@ data class EstimateEntity(
     val projectId: String,
     val markupPercent: Double,
     val linesJson: String,
+    val createdAt: Long,
+    val syncState: String = SyncState.PendingUpload.name
+)
+
+// Поліморфний батько (Project | Room | Surface | Demolition) через parentType+parentId —
+// на відміну від інших дочірніх сутностей тут немає єдиної батьківської таблиці, тому без @ForeignKey;
+// каскадне видалення виконується вручну в репозиторіях (RoomRepository/SurfaceRepository/ProjectRepository).
+@Entity(
+    tableName = "attachments",
+    indices = [Index("projectId"), Index("roomId"), Index(value = ["parentType", "parentId"])]
+)
+data class AttachmentEntity(
+    @PrimaryKey val id: String,
+    val projectId: String,
+    val roomId: String?,
+    val parentType: String,
+    val parentId: String,
+    val kind: String,
+    val fileUrl: String?,
+    val textContent: String?,
+    val mimeType: String?,
     val createdAt: Long,
     val syncState: String = SyncState.PendingUpload.name
 )

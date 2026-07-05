@@ -15,9 +15,10 @@ import com.example.cubemaster.data.local.entity.*
         EstimateEntity::class,
         MaterialCatalogEntity::class,
         PriceEntryEntity::class,
-        CompanyProfileEntity::class
+        CompanyProfileEntity::class,
+        AttachmentEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun materialCatalogDao(): MaterialCatalogDao
     abstract fun priceEntryDao(): PriceEntryDao
     abstract fun companyProfileDao(): CompanyProfileDao
+    abstract fun attachmentDao(): AttachmentDao
 
     companion object {
         const val DATABASE_NAME = "cubemaster.db"

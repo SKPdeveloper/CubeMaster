@@ -43,10 +43,20 @@ class ProjectsViewModel @Inject constructor(
         )
     }
 
-    fun createProject(title: String, address: String?) {
+    fun createProject(title: String, address: String?, documentedAreaM2: Double?) {
         viewModelScope.launch {
             try {
-                repo.createProject(uid, title, address)
+                repo.createProject(uid, title, address, documentedAreaM2)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun updateProject(project: Project, title: String, address: String?, documentedAreaM2: Double?) {
+        viewModelScope.launch {
+            try {
+                repo.updateProject(project.copy(title = title, address = address, documentedAreaM2 = documentedAreaM2))
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
             }

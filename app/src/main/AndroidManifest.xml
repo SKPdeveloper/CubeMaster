@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application
         android:name=".CubeMasterApp"
@@ -39,7 +41,7 @@
             </intent-filter>
         </service>
 
-        <!-- WorkManager за замовчуванням ініціалізується через App class -->
+        <!-- WorkManager ініціалізується вручну через CubeMasterApp (Configuration.Provider) з Hilt WorkerFactory -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -51,13 +53,16 @@
                 tools:node="remove" />
         </provider>
 
-        <!-- Add WorkManager initialization -->
+        <!-- Тимчасові файли фото з камери для вкладень -->
         <provider
-            android:name="androidx.work.impl.WorkManagerInitializer"
-            android:authorities="${applicationId}.workmanager-init"
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
-            tools:node="merge"
-            tools:replace="android:authorities" />
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

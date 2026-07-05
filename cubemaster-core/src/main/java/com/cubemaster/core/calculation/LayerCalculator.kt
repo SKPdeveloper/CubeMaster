@@ -113,6 +113,24 @@ fun calculatePrimer(
     )
 }
 
+fun calculateWallTile(
+    wallAreaM2: Double,
+    isComplexGeometry: Boolean = false
+): LayerResult {
+    var waste = 0.10
+    if (isComplexGeometry) waste += 0.05
+    val totalM2 = wallAreaM2 * (1 + waste)
+    val adhesiveKg = wallAreaM2 * 4.5
+    return LayerResult(
+        mixMassKg = adhesiveKg,
+        bagsCount = ceil(adhesiveKg / PACK_25_KG).toInt(),
+        additionalLines = listOf(
+            AdditionalMaterialLine("Плитка настінна", totalM2, MeasurementUnit.M2),
+            AdditionalMaterialLine("Клей для плитки", adhesiveKg, MeasurementUnit.Kg)
+        )
+    )
+}
+
 fun calculateWaterproofing(
     floorAreaM2: Double,
     perimeter: Double,

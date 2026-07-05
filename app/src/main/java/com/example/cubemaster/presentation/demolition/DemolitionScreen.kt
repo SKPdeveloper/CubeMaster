@@ -83,6 +83,15 @@ fun DemolitionScreen(
             }
 
             WarningCard("Перед демонтажем несучих конструкцій обов'язково перевірте наявність дозволу на перепланування. ДБН В.1.2-14:2018")
+
+            val attachments by viewModel.observeAttachments().collectAsStateWithLifecycle(initialValue = emptyList())
+            AttachmentsSection(
+                attachments = attachments,
+                onAddPhoto = { uri -> viewModel.addPhoto(uri) },
+                onAddPdf = { uri -> viewModel.addPdf(uri) },
+                onAddNote = { text -> viewModel.addNote(text) },
+                onDelete = { viewModel.deleteAttachment(it) }
+            )
         }
     }
 
