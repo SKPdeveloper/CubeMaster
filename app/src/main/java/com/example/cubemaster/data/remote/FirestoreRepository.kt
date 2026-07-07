@@ -68,6 +68,9 @@ class FirestoreRepository @Inject constructor(
             "cornerHeightsMmJson" to roomEntity.cornerHeightsMmJson,
             "roomType" to roomEntity.roomType,
             "sortOrder" to roomEntity.sortOrder,
+            "originXM" to roomEntity.originXM,
+            "originYM" to roomEntity.originYM,
+            "rotationDeg" to roomEntity.rotationDeg,
             "updatedAt" to System.currentTimeMillis()
         )
         roomsCol(uid, projectId).document(roomEntity.id).set(data).await()

@@ -10,6 +10,7 @@ import com.example.cubemaster.presentation.documents.ProjectDocumentsScreen
 import com.example.cubemaster.presentation.estimate.EstimateScreen
 import com.example.cubemaster.presentation.geometry.GeometryScreen
 import com.example.cubemaster.presentation.layers.LayersScreen
+import com.example.cubemaster.presentation.objectplan.ObjectPlanScreen
 import com.example.cubemaster.presentation.profile.ProfileScreen
 import com.example.cubemaster.presentation.projects.ProjectsScreen
 import com.example.cubemaster.presentation.rooms.RoomsScreen
@@ -19,6 +20,9 @@ sealed class Screen(val route: String) {
     object Projects : Screen("projects")
     object Rooms : Screen("rooms/{projectId}") {
         fun createRoute(projectId: String) = "rooms/$projectId"
+    }
+    object ObjectPlan : Screen("object-plan/{projectId}") {
+        fun createRoute(projectId: String) = "object-plan/$projectId"
     }
     object Geometry : Screen("geometry/{roomId}") {
         fun createRoute(roomId: String) = "geometry/$roomId"
@@ -81,6 +85,9 @@ fun AppNavigation(startDestination: String = Screen.Projects.route, pendingShort
                 onRoomClick = { roomId ->
                     navController.navigate(Screen.Geometry.createRoute(roomId))
                 },
+                onObjectPlanClick = {
+                    navController.navigate(Screen.ObjectPlan.createRoute(projectId))
+                },
                 onSummaryClick = {
                     navController.navigate(Screen.Summary.createRoute(projectId))
                 },
@@ -89,6 +96,18 @@ fun AppNavigation(startDestination: String = Screen.Projects.route, pendingShort
                 },
                 onDocumentsClick = {
                     navController.navigate(Screen.ProjectDocuments.createRoute(projectId))
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            Screen.ObjectPlan.route,
+            arguments = listOf(navArgument("projectId") { type = NavType.StringType })
+        ) {
+            ObjectPlanScreen(
+                onRoomClick = { roomId ->
+                    navController.navigate(Screen.Geometry.createRoute(roomId))
                 },
                 onBack = { navController.popBackStack() }
             )

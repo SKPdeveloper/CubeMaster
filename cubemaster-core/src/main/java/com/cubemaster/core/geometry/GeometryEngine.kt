@@ -172,6 +172,67 @@ fun wallAreaNet(gross: Double, openings: List<Opening>): Double {
     return (gross - openingArea).coerceAtLeast(0.0)
 }
 
+// Чи вміщується отвір у межах стіни заданої довжини (за offsetMm/widthMm).
+fun openingWithinWall(wallLengthMm: Int, opening: Opening): Boolean =
+    opening.offsetMm >= 0 && opening.offsetMm + opening.widthMm <= wallLengthMm
+
+// Чи перекриваються два отвори вздовж стіни (інтервали [offset, offset+width)).
+fun openingsOverlap(a: Opening, b: Opening): Boolean {
+    val aEnd = a.offsetMm + a.widthMm
+    val bEnd = b.offsetMm + b.widthMm
+    return a.offsetMm < bEnd && b.offsetMm < aEnd
+}
+
+// Перевіряє всі отвори однієї стіни й повертає українські повідомлення про проблеми
+// (вихід за межі стіни, перекриття двох отворів) — для блокування збереження геометрії.
+fun validateWallOpenings(wallLengthMm: Int, openings: List<Opening>): List<String> {
+    val problems = mutableListOf<String>()
+    openings.forEach { o ->
+        if (!openingWithinWall(wallLengthMm, o)) {
+            problems.add("Отвір (${o.widthMm} мм) з відступом ${o.offsetMm} мм виходить за межі стіни (${wallLengthMm} мм)")
+        }
+    }
+    for (i in openings.indices) {
+        for (j in i + 1 until openings.size) {
+            if (openingsOverlap(openings[i], openings[j])) {
+                problems.add("Отвори на стіні перекриваються між собою")
+            }
+        }
+    }
+    return problems
+}
+
+// Переносить вершини кімнати (локальні координати) у спільну систему координат
+// плану об'єкта — зсув на (originXM, originYM) з поворотом на rotationDeg.
+fun transformVertices(vertices: List<Vertex>, originXM: Double, originYM: Double, rotationDeg: Double): List<Vertex> {
+    val rad = Math.toRadians(rotationDeg)
+    val cosR = cos(rad)
+    val sinR = sin(rad)
+    return vertices.map { v ->
+        Vertex(
+            originXM + v.x * cosR - v.y * sinR,
+            originYM + v.x * sinR + v.y * cosR
+        )
+    }
+}
+
+// Найближча до точки p точка на відрізку [a, b].
+fun closestPointOnSegment(a: Vertex, b: Vertex, p: Vertex): Vertex {
+    val t = projectionRatio(a, b, p)
+    return Vertex(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+}
+
+// Проекція точки p на пряму через a-b, як частка довжини відрізка, обмежена [0, 1].
+// Використовується для хіт-тесту тапу/перетягування по стіні (перетворення точки канваси на offset вздовж стіни).
+fun projectionRatio(a: Vertex, b: Vertex, p: Vertex): Double {
+    val dx = b.x - a.x
+    val dy = b.y - a.y
+    val lenSq = dx * dx + dy * dy
+    if (lenSq <= 1e-12) return 0.0
+    val t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq
+    return t.coerceIn(0.0, 1.0)
+}
+
 fun beaconsCountForWall(
     wallLengthM: Double,
     spacingM: Double = 1.3,

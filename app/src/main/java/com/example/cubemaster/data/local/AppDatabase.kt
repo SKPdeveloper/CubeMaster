@@ -18,7 +18,7 @@ import com.example.cubemaster.data.local.entity.*
         CompanyProfileEntity::class,
         AttachmentEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

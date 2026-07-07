@@ -10,6 +10,11 @@ data class Room(
     val cornerHeightsMm: List<Int>?,
     val roomType: RoomType,
     val sortOrder: Int,
+    // Позиція й поворот кімнати у спільній системі координат плану об'єкта.
+    // null = кімнату ще не розміщено (авто-розкладка на екрані плану об'єкта).
+    val originXM: Double? = null,
+    val originYM: Double? = null,
+    val rotationDeg: Double = 0.0,
     val syncState: SyncState = SyncState.PendingUpload
 )
 
@@ -31,7 +36,9 @@ data class Opening(
     val kind: OpeningKind,
     val widthMm: Int,
     val heightMm: Int,
-    val sillHeightMm: Int = 0
+    val sillHeightMm: Int = 0,
+    // Відстань від початкової вершини стіни до початку отвору вздовж стіни.
+    val offsetMm: Int = 0
 )
 
-enum class OpeningKind { Window, Door, Passage }
+enum class OpeningKind { Window, Door, Passage, Vent, Niche }

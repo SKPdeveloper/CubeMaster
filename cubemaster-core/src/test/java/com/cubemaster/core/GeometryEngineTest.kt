@@ -149,4 +149,84 @@ class GeometryEngineTest {
         assertEquals(1, reflexCount)
         assertEquals(270.0, edges.first { it.interiorAngleDeg > 180.0 }.interiorAngleDeg, 0.1)
     }
+
+    @Test
+    fun `openingWithinWall — отвір у межах стіни`() {
+        val opening = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Window, 1200, 1400, offsetMm = 500)
+        assertTrue(openingWithinWall(4000, opening))
+    }
+
+    @Test
+    fun `openingWithinWall — отвір виходить за межі стіни`() {
+        val opening = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Door, 1000, 2000, offsetMm = 3500)
+        assertFalse(openingWithinWall(4000, opening))
+    }
+
+    @Test
+    fun `openingWithinWall — відʼємний відступ невалідний`() {
+        val opening = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Vent, 300, 300, offsetMm = -10)
+        assertFalse(openingWithinWall(4000, opening))
+    }
+
+    @Test
+    fun `openingsOverlap — два отвори перекриваються`() {
+        val a = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Window, 1200, 1400, offsetMm = 0)
+        val b = com.cubemaster.core.model.Opening("2", "r1", 0, com.cubemaster.core.model.OpeningKind.Door, 1000, 2000, offsetMm = 800)
+        assertTrue(openingsOverlap(a, b))
+    }
+
+    @Test
+    fun `openingsOverlap — отвори не перекриваються`() {
+        val a = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Window, 1200, 1400, offsetMm = 0)
+        val b = com.cubemaster.core.model.Opening("2", "r1", 0, com.cubemaster.core.model.OpeningKind.Niche, 500, 500, offsetMm = 1200)
+        assertFalse(openingsOverlap(a, b))
+    }
+
+    @Test
+    fun `validateWallOpenings — повертає проблеми виходу за межі й перекриття`() {
+        val a = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Window, 1200, 1400, offsetMm = 0)
+        val b = com.cubemaster.core.model.Opening("2", "r1", 0, com.cubemaster.core.model.OpeningKind.Door, 1000, 2000, offsetMm = 800)
+        val c = com.cubemaster.core.model.Opening("3", "r1", 0, com.cubemaster.core.model.OpeningKind.Vent, 300, 300, offsetMm = 3900)
+        val problems = validateWallOpenings(4000, listOf(a, b, c))
+        assertEquals(2, problems.size)
+    }
+
+    @Test
+    fun `validateWallOpenings — без проблем повертає порожній список`() {
+        val a = com.cubemaster.core.model.Opening("1", "r1", 0, com.cubemaster.core.model.OpeningKind.Window, 1200, 1400, offsetMm = 0)
+        val b = com.cubemaster.core.model.Opening("2", "r1", 0, com.cubemaster.core.model.OpeningKind.Door, 1000, 2000, offsetMm = 1500)
+        assertTrue(validateWallOpenings(4000, listOf(a, b)).isEmpty())
+    }
+
+    @Test
+    fun `transformVertices — зсув без повороту`() {
+        val vertices = listOf(Vertex(0.0, 0.0), Vertex(1.0, 0.0), Vertex(1.0, 1.0), Vertex(0.0, 1.0))
+        val transformed = transformVertices(vertices, originXM = 5.0, originYM = 2.0, rotationDeg = 0.0)
+        assertEquals(Vertex(5.0, 2.0).x, transformed[0].x, 0.001)
+        assertEquals(Vertex(6.0, 2.0).x, transformed[1].x, 0.001)
+        assertEquals(Vertex(6.0, 3.0).y, transformed[2].y, 0.001)
+    }
+
+    @Test
+    fun `transformVertices — поворот на 90 градусів`() {
+        val vertices = listOf(Vertex(1.0, 0.0))
+        val transformed = transformVertices(vertices, originXM = 0.0, originYM = 0.0, rotationDeg = 90.0)
+        assertEquals(0.0, transformed[0].x, 0.001)
+        assertEquals(1.0, transformed[0].y, 0.001)
+    }
+
+    @Test
+    fun `closestPointOnSegment — точка над серединою відрізка`() {
+        val closest = closestPointOnSegment(Vertex(0.0, 0.0), Vertex(4.0, 0.0), Vertex(2.0, 3.0))
+        assertEquals(2.0, closest.x, 0.001)
+        assertEquals(0.0, closest.y, 0.001)
+    }
+
+    @Test
+    fun `projectionRatio — обмежується в межах 0 та 1`() {
+        val t = projectionRatio(Vertex(0.0, 0.0), Vertex(4.0, 0.0), Vertex(10.0, 5.0))
+        assertEquals(1.0, t, 0.001)
+        val t2 = projectionRatio(Vertex(0.0, 0.0), Vertex(4.0, 0.0), Vertex(-5.0, 1.0))
+        assertEquals(0.0, t2, 0.001)
+    }
 }

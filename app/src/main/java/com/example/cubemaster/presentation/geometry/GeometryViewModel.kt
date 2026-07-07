@@ -35,6 +35,7 @@ data class GeometryUiState(
     val floorAreaM2: Double = 0.0,
     val perimeter: Double = 0.0,
     val closureWarning: String? = null,
+    val openingWarning: String? = null,
     val hasUnsavedChanges: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null
@@ -79,6 +80,7 @@ class GeometryViewModel @Inject constructor(
         viewModelScope.launch {
             roomRepo.observeOpenings(roomId).collect { openings ->
                 _state.update { it.copy(openings = openings) }
+                recalculate()
             }
         }
         viewModelScope.launch {
@@ -138,12 +140,24 @@ class GeometryViewModel @Inject constructor(
         }
     }
 
-    fun addOpening(wallEdgeIndex: Int, kind: OpeningKind, widthMm: Int, heightMm: Int, sillMm: Int) {
+    fun addOpening(wallEdgeIndex: Int, offsetMm: Int, kind: OpeningKind, widthMm: Int, heightMm: Int, sillMm: Int) {
         viewModelScope.launch {
             roomRepo.upsertOpening(
-                Opening(UUID.randomUUID().toString(), roomId, wallEdgeIndex, kind, widthMm, heightMm, sillMm)
+                Opening(UUID.randomUUID().toString(), roomId, wallEdgeIndex, kind, widthMm, heightMm, sillMm, offsetMm)
             )
         }
+    }
+
+    fun updateOpening(id: String, wallEdgeIndex: Int, offsetMm: Int, kind: OpeningKind, widthMm: Int, heightMm: Int, sillMm: Int) {
+        viewModelScope.launch {
+            roomRepo.upsertOpening(Opening(id, roomId, wallEdgeIndex, kind, widthMm, heightMm, sillMm, offsetMm))
+        }
+    }
+
+    // Живе перетягування отвору вздовж стіни на плані — оновлює лише offsetMm, решту полів лишає без змін.
+    fun moveOpening(openingId: String, newOffsetMm: Int) {
+        val existing = _state.value.openings.firstOrNull { it.id == openingId } ?: return
+        viewModelScope.launch { roomRepo.upsertOpening(existing.copy(offsetMm = newOffsetMm)) }
     }
 
     fun deleteOpening(id: String) {
@@ -158,6 +172,10 @@ class GeometryViewModel @Inject constructor(
         }
         if (s.polygonResult?.status == ClosureStatus.Error) {
             _state.update { it.copy(error = "Нев'язка контуру перевищує 10 см. Перевірте виміри.") }
+            return
+        }
+        if (s.openingWarning != null) {
+            _state.update { it.copy(error = "Виправте прорізи перед збереженням: ${s.openingWarning}") }
             return
         }
         val room = s.room ?: return
@@ -193,12 +211,14 @@ class GeometryViewModel @Inject constructor(
             val l = s.lengthMm.toIntOrNull() ?: return
             val area = rectangleAreaM2(w, l)
             val perimeter = rectanglePerimeterM(w, l)
+            val vertices = rectangleVertices(w, l)
             _state.update {
                 it.copy(
                     floorAreaM2 = area,
                     perimeter = perimeter,
-                    polygonVertices = rectangleVertices(w, l),
-                    closureWarning = null
+                    polygonVertices = vertices,
+                    closureWarning = null,
+                    openingWarning = computeOpeningWarning(vertices, s.openings)
                 )
             }
         } else {
@@ -230,9 +250,24 @@ class GeometryViewModel @Inject constructor(
                 polygonVertices = result.vertices,
                 floorAreaM2 = area,
                 perimeter = perimeter,
-                closureWarning = warning
+                closureWarning = warning,
+                openingWarning = computeOpeningWarning(result.vertices, s.openings)
             ) }
         }
+    }
+
+    // Перевіряє прорізи кожної стіни (вихід за межі, перекриття) — окреме від нев'язки контуру попередження,
+    // яке так само блокує збереження геометрії (saveGeometry()).
+    private fun computeOpeningWarning(vertices: List<Vertex>, openings: List<Opening>): String? {
+        val n = vertices.size
+        if (n < 3) return null
+        val problems = mutableListOf<String>()
+        for (i in 0 until n) {
+            val wallLenMm = Math.round(distance(vertices[i], vertices[(i + 1) % n]) * 1000.0).toInt()
+            val wallOpenings = openings.filter { it.wallEdgeIndex == i }
+            problems += validateWallOpenings(wallLenMm, wallOpenings)
+        }
+        return problems.takeIf { it.isNotEmpty() }?.joinToString("; ")
     }
 
     fun clearError() = _state.update { it.copy(error = null) }

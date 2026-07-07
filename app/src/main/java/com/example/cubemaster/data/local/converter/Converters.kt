@@ -61,6 +61,9 @@ object EntityMapper {
             cornerHeightsMm = e.cornerHeightsMmJson?.let { parseIntList(it, json) },
             roomType = RoomType.valueOf(e.roomType),
             sortOrder = e.sortOrder,
+            originXM = e.originXM,
+            originYM = e.originYM,
+            rotationDeg = e.rotationDeg,
             syncState = SyncState.valueOf(e.syncState)
         )
     }
@@ -86,6 +89,9 @@ object EntityMapper {
             cornerHeightsMmJson = d.cornerHeightsMm?.let { json.encodeToString(it) },
             roomType = d.roomType.name,
             sortOrder = d.sortOrder,
+            originXM = d.originXM,
+            originYM = d.originYM,
+            rotationDeg = d.rotationDeg,
             syncState = d.syncState.name
         )
     }

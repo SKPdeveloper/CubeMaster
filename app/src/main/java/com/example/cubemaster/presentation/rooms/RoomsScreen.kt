@@ -32,6 +32,7 @@ import com.example.cubemaster.ui.theme.CubeMasterColors
 fun RoomsScreen(
     projectId: String,
     onRoomClick: (String) -> Unit,
+    onObjectPlanClick: () -> Unit,
     onSummaryClick: () -> Unit,
     onEstimateClick: () -> Unit,
     onDocumentsClick: () -> Unit,
@@ -56,6 +57,9 @@ fun RoomsScreen(
                 title = state.project?.title ?: "Кімнати",
                 onBack = onBack,
                 actions = {
+                    IconButton(onClick = onObjectPlanClick) {
+                        Icon(Icons.Default.Map, contentDescription = "План об'єкта")
+                    }
                     IconButton(onClick = onSummaryClick) {
                         Icon(Icons.Default.Calculate, contentDescription = "Зведення")
                     }

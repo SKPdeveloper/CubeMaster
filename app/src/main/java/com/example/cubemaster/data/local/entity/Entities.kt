@@ -41,6 +41,9 @@ data class RoomEntity(
     val cornerHeightsMmJson: String?,
     val roomType: String,
     val sortOrder: Int,
+    val originXM: Double? = null,
+    val originYM: Double? = null,
+    val rotationDeg: Double = 0.0,
     val syncState: String = SyncState.PendingUpload.name
 )
 
@@ -61,7 +64,8 @@ data class OpeningEntity(
     val kind: String,
     val widthMm: Int,
     val heightMm: Int,
-    val sillHeightMm: Int = 0
+    val sillHeightMm: Int = 0,
+    val offsetMm: Int = 0
 )
 
 @Entity(

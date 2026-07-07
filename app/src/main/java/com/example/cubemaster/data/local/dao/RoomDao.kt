@@ -16,10 +16,10 @@ interface RoomDao {
     @Query("SELECT * FROM rooms WHERE id = :id")
     suspend fun getById(id: String): RoomEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(room: RoomEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(rooms: List<RoomEntity>)
 
     @Query("DELETE FROM rooms WHERE id = :id")
@@ -38,10 +38,10 @@ interface OpeningDao {
     @Query("SELECT * FROM openings WHERE roomId = :roomId")
     fun observeByRoom(roomId: String): Flow<List<OpeningEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(opening: OpeningEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(openings: List<OpeningEntity>)
 
     @Query("DELETE FROM openings WHERE id = :id")
@@ -60,10 +60,10 @@ interface SurfaceDao {
     @Query("SELECT * FROM surfaces WHERE id = :id")
     suspend fun getById(id: String): SurfaceEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(surface: SurfaceEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(surfaces: List<SurfaceEntity>)
 
     @Query("DELETE FROM surfaces WHERE id = :id")
@@ -79,7 +79,7 @@ interface DemolitionTaskDao {
     @Query("SELECT * FROM demolition_tasks WHERE roomId = :roomId")
     fun observeByRoom(roomId: String): Flow<List<DemolitionTaskEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(task: DemolitionTaskEntity)
 
     @Query("DELETE FROM demolition_tasks WHERE id = :id")
@@ -98,7 +98,7 @@ interface AttachmentDao {
     @Query("SELECT * FROM attachments WHERE projectId = :projectId AND parentType = 'Project' ORDER BY createdAt ASC")
     fun observeProjectLevel(projectId: String): Flow<List<AttachmentEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(attachment: AttachmentEntity)
 
     @Query("SELECT * FROM attachments WHERE id = :id")
@@ -132,7 +132,7 @@ interface EstimateDao {
     @Query("SELECT * FROM estimates WHERE id = :id")
     suspend fun getById(id: String): EstimateEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(estimate: EstimateEntity)
 
     @Query("DELETE FROM estimates WHERE id = :id")
@@ -157,7 +157,7 @@ interface MaterialCatalogDao {
     @Query("SELECT * FROM material_catalog WHERE nameUa LIKE '%' || :query || '%'")
     suspend fun search(query: String): List<com.example.cubemaster.data.local.entity.MaterialCatalogEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(entries: List<com.example.cubemaster.data.local.entity.MaterialCatalogEntity>)
 }
 
@@ -170,10 +170,10 @@ interface PriceEntryDao {
     @Query("SELECT * FROM price_entries WHERE materialSku = :sku ORDER BY fetchedAt DESC LIMIT 1")
     suspend fun getLatestBySku(sku: String): PriceEntryEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(entry: PriceEntryEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(entries: List<PriceEntryEntity>)
 
     @Query("DELETE FROM price_entries WHERE materialSku = :sku AND source != 'Manual'")
@@ -189,6 +189,6 @@ interface CompanyProfileDao {
     @Query("SELECT * FROM company_profile WHERE id = 1")
     suspend fun get(): CompanyProfileEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(profile: CompanyProfileEntity)
 }

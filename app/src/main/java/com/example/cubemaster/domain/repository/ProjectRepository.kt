@@ -97,6 +97,20 @@ class RoomRepository @Inject constructor(
         db.roomDao().upsert(EntityMapper.mapToRoomEntity(room.copy(syncState = SyncState.PendingUpload), json))
     }
 
+    // Оновлює лише позицію/поворот кімнати на плані об'єкта (перетягування на ObjectPlanScreen) —
+    // не чіпає геометрію кімнати, тож не конфліктує з незбереженими правками на GeometryScreen.
+    suspend fun updateRoomPlacement(roomId: String, originXM: Double, originYM: Double, rotationDeg: Double = 0.0) {
+        val entity = db.roomDao().getById(roomId) ?: return
+        db.roomDao().upsert(
+            entity.copy(
+                originXM = originXM,
+                originYM = originYM,
+                rotationDeg = rotationDeg,
+                syncState = SyncState.PendingUpload.name
+            )
+        )
+    }
+
     suspend fun deleteRoom(id: String) {
         db.roomDao().deleteById(id)
         attachmentRepo.deleteAllForRoom(id)
@@ -112,7 +126,8 @@ class RoomRepository @Inject constructor(
                     kind = OpeningKind.valueOf(it.kind),
                     widthMm = it.widthMm,
                     heightMm = it.heightMm,
-                    sillHeightMm = it.sillHeightMm
+                    sillHeightMm = it.sillHeightMm,
+                    offsetMm = it.offsetMm
                 )
             }
         }
@@ -126,7 +141,8 @@ class RoomRepository @Inject constructor(
                 kind = opening.kind.name,
                 widthMm = opening.widthMm,
                 heightMm = opening.heightMm,
-                sillHeightMm = opening.sillHeightMm
+                sillHeightMm = opening.sillHeightMm,
+                offsetMm = opening.offsetMm
             )
         )
     }
