@@ -152,6 +152,10 @@ class GeometryViewModel @Inject constructor(
 
     fun saveGeometry() {
         val s = _state.value
+        if (s.polygonResult?.selfIntersects == true) {
+            _state.update { it.copy(error = "Стіни контуру перетинаються. Виправте форму перед збереженням.") }
+            return
+        }
         if (s.polygonResult?.status == ClosureStatus.Error) {
             _state.update { it.copy(error = "Нев'язка контуру перевищує 10 см. Перевірте виміри.") }
             return
@@ -167,7 +171,7 @@ class GeometryViewModel @Inject constructor(
             } else {
                 val edges = s.edges.mapNotNull { e ->
                     val l = e.lengthMm.toIntOrNull() ?: return@mapNotNull null
-                    val a = e.angleDeg.toDoubleOrNull() ?: 90.0
+                    val a = e.angleDeg.replace(",", ".").toDoubleOrNull() ?: 90.0
                     Edge(l, a)
                 }
                 RoomGeometry.Polygon(edges)
@@ -189,11 +193,18 @@ class GeometryViewModel @Inject constructor(
             val l = s.lengthMm.toIntOrNull() ?: return
             val area = rectangleAreaM2(w, l)
             val perimeter = rectanglePerimeterM(w, l)
-            _state.update { it.copy(floorAreaM2 = area, perimeter = perimeter, closureWarning = null) }
+            _state.update {
+                it.copy(
+                    floorAreaM2 = area,
+                    perimeter = perimeter,
+                    polygonVertices = rectangleVertices(w, l),
+                    closureWarning = null
+                )
+            }
         } else {
             val edges = s.edges.mapNotNull { e ->
                 val l = e.lengthMm.toIntOrNull() ?: return
-                val a = e.angleDeg.toDoubleOrNull() ?: 90.0
+                val a = e.angleDeg.replace(",", ".").toDoubleOrNull() ?: 90.0
                 Edge(l, a)
             }
             if (edges.size < 3) return
@@ -206,10 +217,11 @@ class GeometryViewModel @Inject constructor(
             val result = buildPolygon(edges)
             val area = polygonAreaM2(result.vertices)
             val perimeter = perimeterM(result.vertices)
-            val warning = when (result.status) {
-                ClosureStatus.WarningAutoFixed ->
+            val warning = when {
+                result.selfIntersects -> "Стіни контуру перетинаються — форма невалідна. Перевірте кути та довжини ребер."
+                result.status == ClosureStatus.WarningAutoFixed ->
                     "Нев'язка замикання ${String.format("%.1f", result.closureErrorM * 100)} см — застосована автокорекція"
-                ClosureStatus.Error ->
+                result.status == ClosureStatus.Error ->
                     "Нев'язка замикання ${String.format("%.1f", result.closureErrorM * 100)} см перевищує допустимі 10 см"
                 else -> null
             }

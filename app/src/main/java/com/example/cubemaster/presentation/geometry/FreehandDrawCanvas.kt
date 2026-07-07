@@ -17,6 +17,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.cubemaster.core.geometry.Vertex
+import com.cubemaster.core.geometry.hasSelfIntersection
 import com.cubemaster.core.geometry.simplifyPolyline
 import com.cubemaster.core.geometry.snapToGrid
 import com.cubemaster.core.geometry.verticesToEdges
@@ -68,6 +69,11 @@ fun FreehandDrawCanvas(
         val finalVertices = (if (isCalibrated) closed else closed.map { snapToGrid(it, GRID_STEP_M) }).distinct()
         if (finalVertices.size < 3) {
             errorMessage = "Не вдалось розпізнати контур — намалюйте кімнату чіткіше"
+            rawPath.clear()
+            return
+        }
+        if (hasSelfIntersection(finalVertices)) {
+            errorMessage = "Стіни контуру перетинаються — намалюйте кімнату без самоперетинів"
             rawPath.clear()
             return
         }

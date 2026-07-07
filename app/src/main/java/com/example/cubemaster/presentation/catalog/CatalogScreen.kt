@@ -177,7 +177,7 @@ private fun MaterialEntryCard(
                         modifier = Modifier.weight(1f)
                     )
                     Button(
-                        onClick = { priceInput.toDoubleOrNull()?.let { onSetPrice(it) } },
+                        onClick = { priceInput.replace(",", ".").toDoubleOrNull()?.let { onSetPrice(it) } },
                         colors = ButtonDefaults.buttonColors(containerColor = CubeMasterColors.red)
                     ) { Text("Зберегти") }
                 }

@@ -307,7 +307,7 @@ private fun AddLayerDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                onConfirm(selectedType, thickness.toDoubleOrNull(), null)
+                onConfirm(selectedType, thickness.replace(",", ".").toDoubleOrNull(), null)
             }) { Text("Додати") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Скасувати") } }
@@ -356,7 +356,7 @@ private fun EditThicknessDialog(current: String, onConfirm: (Double) -> Unit, on
             NumberInputField(value, { value = it }, "Товщина", "мм")
         },
         confirmButton = {
-            TextButton(onClick = { value.toDoubleOrNull()?.let { onConfirm(it) } }) { Text("Зберегти") }
+            TextButton(onClick = { value.replace(",", ".").toDoubleOrNull()?.let { onConfirm(it) } }) { Text("Зберегти") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Скасувати") } }
     )

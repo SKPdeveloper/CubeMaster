@@ -1,9 +1,12 @@
 package com.example.cubemaster.presentation.rooms
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,10 +14,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cubemaster.core.geometry.Vertex
+import com.cubemaster.core.geometry.roomGeometryVertices
 import com.cubemaster.core.model.RoomType
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
@@ -135,6 +144,10 @@ private fun RoomCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                MiniRoomShape(
+                    vertices = roomGeometryVertices(item.room.geometry),
+                    modifier = Modifier.size(48.dp)
+                )
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, contentDescription = "Видалити", tint = CubeMasterColors.error.copy(0.7f))
                 }
@@ -158,6 +171,46 @@ private fun RoomCard(
                 onDelete = onDeleteAttachment
             )
         }
+    }
+}
+
+// Мініатюра форми кімнати для картки у списку — той самий рушій вершин, що й повне прев'ю на Геометрії.
+@Composable
+private fun MiniRoomShape(vertices: List<Vertex>, modifier: Modifier = Modifier) {
+    Canvas(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(CubeMasterColors.gold.copy(alpha = 0.10f))
+    ) {
+        if (vertices.isEmpty()) return@Canvas
+        val padding = 6f
+        val minX = vertices.minOf { it.x }
+        val maxX = vertices.maxOf { it.x }
+        val minY = vertices.minOf { it.y }
+        val maxY = vertices.maxOf { it.y }
+        val rangeX = (maxX - minX).coerceAtLeast(0.001)
+        val rangeY = (maxY - minY).coerceAtLeast(0.001)
+        val scaleXY = minOf(
+            (size.width - padding * 2) / rangeX,
+            (size.height - padding * 2) / rangeY
+        )
+        val offsetX = (size.width - rangeX.toFloat() * scaleXY.toFloat()) / 2f
+        val offsetY = (size.height - rangeY.toFloat() * scaleXY.toFloat()) / 2f
+
+        fun toCanvas(v: Vertex): Offset {
+            val x = offsetX + (v.x - minX) * scaleXY
+            val y = size.height - offsetY - (v.y - minY) * scaleXY
+            return Offset(x.toFloat(), y.toFloat())
+        }
+
+        val path = Path()
+        val first = toCanvas(vertices.first())
+        path.moveTo(first.x, first.y)
+        vertices.drop(1).forEach { path.lineTo(toCanvas(it).x, toCanvas(it).y) }
+        path.close()
+
+        drawPath(path, CubeMasterColors.gold.copy(alpha = 0.25f))
+        drawPath(path, CubeMasterColors.gold, style = Stroke(width = 1.5.dp.toPx()))
     }
 }
 

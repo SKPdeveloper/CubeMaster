@@ -187,9 +187,9 @@ private fun WallRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewMo
         confirmButton = {
             TextButton(onClick = {
                 viewModel.addWallRemoval(
-                    length.toDoubleOrNull() ?: 0.0,
-                    height.toDoubleOrNull() ?: 0.0,
-                    thickness.toDoubleOrNull() ?: 0.0,
+                    length.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                    height.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                    thickness.replace(",", ".").toDoubleOrNull() ?: 0.0,
                     material, powered
                 )
                 onDismiss()
@@ -228,7 +228,7 @@ private fun PlasterRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionVie
         },
         confirmButton = {
             TextButton(onClick = {
-                viewModel.addPlasterRemoval(area.toDoubleOrNull() ?: 0.0, isGypsum, isCeiling)
+                viewModel.addPlasterRemoval(area.replace(",", ".").toDoubleOrNull() ?: 0.0, isGypsum, isCeiling)
                 onDismiss()
             }) { Text("Додати") }
         },
@@ -256,7 +256,7 @@ private fun ScreedRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionView
         },
         confirmButton = {
             TextButton(onClick = {
-                viewModel.addScreedRemoval(area.toDoubleOrNull() ?: 0.0, thickness.toDoubleOrNull() ?: 50.0)
+                viewModel.addScreedRemoval(area.replace(",", ".").toDoubleOrNull() ?: 0.0, thickness.replace(",", ".").toDoubleOrNull() ?: 50.0)
                 onDismiss()
             }) { Text("Додати") }
         },
@@ -305,7 +305,7 @@ private fun PaintRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewM
         confirmButton = {
             TextButton(onClick = {
                 viewModel.addPaintRemoval(PaintRemovalParams(
-                    area.toDoubleOrNull() ?: 0.0, paintType,
+                    area.replace(",", ".").toDoubleOrNull() ?: 0.0, paintType,
                     PaintSubstrate.Plaster, method, layers.toIntOrNull() ?: 2
                 ))
                 onDismiss()
@@ -327,7 +327,7 @@ private fun SimpleAreaDialog(title: String, onDismiss: () -> Unit, onConfirm: (D
             NumberInputField(area, { area = it }, "Площа", "м²")
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(area.toDoubleOrNull() ?: 0.0) }) { Text("Додати") }
+            TextButton(onClick = { onConfirm(area.replace(",", ".").toDoubleOrNull() ?: 0.0) }) { Text("Додати") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Скасувати") } }
     )

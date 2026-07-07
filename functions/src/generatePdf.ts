@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import * as Handlebars from "handlebars";
-import * as puppeteer from "puppeteer";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 
 const pdfTemplate = `<!DOCTYPE html>
 <html lang="uk">
@@ -106,13 +107,14 @@ export async function generatePdf(uid: string, projectId: string, estimateId: st
   });
 
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
     headless: true
   });
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
     const fileName = `estimates/${uid}/${projectId}/${estimateId}_${Date.now()}.pdf`;
     const file = admin.storage().bucket().file(fileName);

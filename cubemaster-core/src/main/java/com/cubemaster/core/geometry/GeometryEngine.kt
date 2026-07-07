@@ -2,6 +2,7 @@ package com.cubemaster.core.geometry
 
 import com.cubemaster.core.model.Edge
 import com.cubemaster.core.model.Opening
+import com.cubemaster.core.model.RoomGeometry
 import kotlin.math.*
 
 data class Vertex(val x: Double, val y: Double)
@@ -9,7 +10,8 @@ data class Vertex(val x: Double, val y: Double)
 data class PolygonResult(
     val vertices: List<Vertex>,
     val closureErrorM: Double,
-    val status: ClosureStatus
+    val status: ClosureStatus,
+    val selfIntersects: Boolean = false
 )
 
 enum class ClosureStatus {
@@ -40,7 +42,7 @@ fun buildPolygon(edges: List<Edge>): PolygonResult {
     val errorY = vertices.last().y - vertices.first().y
     val closureErrorM = hypot(errorX, errorY)
 
-    return when {
+    val result = when {
         closureErrorM <= 0.02 -> PolygonResult(
             vertices.dropLast(1),
             closureErrorM,
@@ -55,6 +57,52 @@ fun buildPolygon(edges: List<Edge>): PolygonResult {
         }
         else -> PolygonResult(vertices.dropLast(1), closureErrorM, ClosureStatus.Error)
     }
+    return result.copy(selfIntersects = hasSelfIntersection(result.vertices))
+}
+
+// Перевіряє, чи перетинаються дві непарні (несуміжні) відрізки-стіни — стандартний
+// орієнтаційний тест computational geometry (Cormen et al.).
+private fun segmentsIntersect(p1: Vertex, p2: Vertex, p3: Vertex, p4: Vertex): Boolean {
+    fun orientation(a: Vertex, b: Vertex, c: Vertex): Int {
+        val v = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+        return when {
+            v > 1e-9 -> 1
+            v < -1e-9 -> -1
+            else -> 0
+        }
+    }
+    fun onSegment(a: Vertex, b: Vertex, c: Vertex): Boolean {
+        return min(a.x, b.x) - 1e-9 <= c.x && c.x <= max(a.x, b.x) + 1e-9 &&
+            min(a.y, b.y) - 1e-9 <= c.y && c.y <= max(a.y, b.y) + 1e-9
+    }
+    val o1 = orientation(p1, p2, p3)
+    val o2 = orientation(p1, p2, p4)
+    val o3 = orientation(p3, p4, p1)
+    val o4 = orientation(p3, p4, p2)
+    if (o1 != o2 && o3 != o4) return true
+    if (o1 == 0 && onSegment(p1, p2, p3)) return true
+    if (o2 == 0 && onSegment(p1, p2, p4)) return true
+    if (o3 == 0 && onSegment(p3, p4, p1)) return true
+    if (o4 == 0 && onSegment(p3, p4, p2)) return true
+    return false
+}
+
+// Стіни (несуміжні ребра контуру) не можуть перетинатись — реальна кімната не буває "бантиком".
+fun hasSelfIntersection(vertices: List<Vertex>): Boolean {
+    val n = vertices.size
+    if (n < 4) return false
+    for (i in 0 until n) {
+        val a1 = vertices[i]
+        val a2 = vertices[(i + 1) % n]
+        for (j in i + 1 until n) {
+            val adjacent = j == i + 1 || (i == 0 && j == n - 1)
+            if (adjacent) continue
+            val b1 = vertices[j]
+            val b2 = vertices[(j + 1) % n]
+            if (segmentsIntersect(a1, a2, b1, b2)) return true
+        }
+    }
+    return false
 }
 
 fun distributeClosureError(vertices: List<Vertex>, errorVector: Vertex): List<Vertex> {
@@ -82,6 +130,19 @@ fun polygonAreaM2(vertices: List<Vertex>): Double {
 fun rectangleAreaM2(widthMm: Int, lengthMm: Int): Double =
     (widthMm / 1000.0) * (lengthMm / 1000.0)
 
+// Вершини прямокутника за годинниковою стрілкою, той самий Vertex, що й у полігон-рушії —
+// щоб прямокутний і довільний режими малювались одним компонентом плану кімнати.
+fun rectangleVertices(widthMm: Int, lengthMm: Int): List<Vertex> {
+    val w = widthMm / 1000.0
+    val l = lengthMm / 1000.0
+    return listOf(
+        Vertex(0.0, 0.0),
+        Vertex(w, 0.0),
+        Vertex(w, l),
+        Vertex(0.0, l)
+    )
+}
+
 fun perimeterM(vertices: List<Vertex>): Double =
     vertices.indices.sumOf { i -> distance(vertices[i], vertices[(i + 1) % vertices.size]) }
 
@@ -89,6 +150,13 @@ fun rectanglePerimeterM(widthMm: Int, lengthMm: Int): Double =
     2 * (widthMm + lengthMm) / 1000.0
 
 fun distance(a: Vertex, b: Vertex) = hypot(b.x - a.x, b.y - a.y)
+
+// Вершини кімнати незалежно від того, прямокутник вона чи довільний контур —
+// для будь-якого місця, де потрібно намалювати форму кімнати (прев'ю, мініатюра в списку).
+fun roomGeometryVertices(geometry: RoomGeometry): List<Vertex> = when (geometry) {
+    is RoomGeometry.Rectangle -> rectangleVertices(geometry.widthMm, geometry.lengthMm)
+    is RoomGeometry.Polygon -> buildPolygon(geometry.edges).vertices
+}
 
 fun wallAreaGross(edgeLengthMm: Int, heightAtStartMm: Int, heightAtEndMm: Int): Double {
     val l = edgeLengthMm / 1000.0

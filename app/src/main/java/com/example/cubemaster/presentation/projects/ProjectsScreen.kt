@@ -72,7 +72,9 @@ fun ProjectsScreen(
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when {
                 state.isLoading -> LoadingOverlay()
-                state.projects.isEmpty() -> EmptyState("Немає проєктів. Натисніть + щоб створити.")
+                state.projects.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    EmptyState("Тут з'явиться ваш перший об'єкт.\nНатисніть +, щоб додати проєкт і порахувати кубатуру матеріалів.")
+                }
                 else -> LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)

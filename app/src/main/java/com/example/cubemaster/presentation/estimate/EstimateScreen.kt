@@ -85,7 +85,7 @@ fun EstimateScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = state.markupPercent.toInt().toString(),
-                            onValueChange = { v -> v.toDoubleOrNull()?.let { viewModel.updateMarkup(it) } },
+                            onValueChange = { v -> v.replace(",", ".").toDoubleOrNull()?.let { viewModel.updateMarkup(it) } },
                             suffix = { Text("%") },
                             modifier = Modifier.width(80.dp),
                             singleLine = true
@@ -293,7 +293,7 @@ private fun AddLineDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirm(description, qty.toDoubleOrNull() ?: 0.0, unit, price.toDoubleOrNull() ?: 0.0)
+                    onConfirm(description, qty.replace(",", ".").toDoubleOrNull() ?: 0.0, unit, price.replace(",", ".").toDoubleOrNull() ?: 0.0)
                 },
                 enabled = description.isNotBlank()
             ) { Text("Додати") }
