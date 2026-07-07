@@ -296,7 +296,10 @@ private fun PaintRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewM
                         Text(methodLabel(m))
                     }
                 }
-                NumberInputField(layers, { layers = it }, "К-сть шарів (орієнтовно)", "")
+                NumberInputField(
+                    layers, { layers = it }, "К-сть шарів (орієнтовно)", "",
+                    helperText = "Скільки разів перефарбовували поверхню — впливає на об'єм відходів"
+                )
                 if (paintType == PaintType.Unknown) {
                     WarningCard("Невідомий тип фарби — розрахунок за найважчим сценарієм")
                 }

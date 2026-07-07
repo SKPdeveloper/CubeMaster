@@ -254,6 +254,7 @@ private fun GeometryTab(
                     onValueChange = { viewModel.setEdgeLength(i, it) },
                     label = "Довжина",
                     unit = "мм",
+                    helperText = "Довжина цієї стіни",
                     modifier = Modifier.weight(1f)
                 )
                 NumberInputField(
@@ -261,6 +262,7 @@ private fun GeometryTab(
                     onValueChange = { viewModel.setEdgeAngle(i, it) },
                     label = "Кут",
                     unit = "°",
+                    helperText = "Внутрішній кут, 90° — прямий",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -345,7 +347,7 @@ private fun SurfacesTab(state: GeometryUiState, onLayersClick: (String) -> Unit,
                     if (surface.layers.isNotEmpty()) {
                         LayerStackIndicator(
                             layers = surface.layers,
-                            modifier = Modifier.width(80.dp).height(24.dp)
+                            modifier = Modifier.width(80.dp).height(12.dp)
                         )
                     }
                     Icon(Icons.Default.ChevronRight, contentDescription = null)
@@ -511,11 +513,17 @@ private fun AddOpeningDialog(
                         )
                     }
                 }
-                NumberInputField(offset, { offset = it }, "Відступ від кута", "мм")
+                NumberInputField(
+                    offset, { offset = it }, "Відступ від кута", "мм",
+                    helperText = "Відстань від початку стіни (лівого краю на плані) до отвору"
+                )
                 NumberInputField(width, { width = it }, "Ширина", "мм")
                 NumberInputField(height, { height = it }, "Висота", "мм")
                 if (kind == OpeningKind.Window) {
-                    NumberInputField(sill, { sill = it }, "Підвіконня", "мм")
+                    NumberInputField(
+                        sill, { sill = it }, "Підвіконня", "мм",
+                        helperText = "Висота від підлоги до низу вікна"
+                    )
                 }
                 problems.forEach { problem ->
                     Text(problem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)

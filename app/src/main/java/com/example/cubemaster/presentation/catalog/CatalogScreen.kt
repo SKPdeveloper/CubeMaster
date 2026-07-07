@@ -168,12 +168,12 @@ private fun MaterialEntryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    NumberInputField(
                         value = priceInput,
                         onValueChange = { priceInput = it },
-                        label = { Text("Моя ціна") },
-                        suffix = { Text("грн") },
-                        singleLine = true,
+                        label = "Моя ціна",
+                        unit = "грн",
+                        helperText = "Ваша реальна закупівельна ціна — заміщує ринкову в розрахунках",
                         modifier = Modifier.weight(1f)
                     )
                     Button(

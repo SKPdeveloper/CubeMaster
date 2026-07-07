@@ -29,6 +29,7 @@ fun ProjectsScreen(
     onSummaryClick: (String) -> Unit,
     onCatalogClick: () -> Unit,
     onProfileClick: () -> Unit,
+    onHelpClick: () -> Unit,
     openCreateDialogOnStart: Boolean = false,
     viewModel: ProjectsViewModel = hiltViewModel()
 ) {
@@ -51,6 +52,9 @@ fun ProjectsScreen(
             CubeMasterTopBar(
                 title = "КубМайстер",
                 actions = {
+                    IconButton(onClick = onHelpClick) {
+                        Icon(Icons.Default.HelpOutline, contentDescription = "Довідка")
+                    }
                     IconButton(onClick = onCatalogClick) {
                         Icon(Icons.Default.List, contentDescription = "Каталог матеріалів")
                     }
@@ -254,12 +258,12 @@ private fun ProjectDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                NumberInputField(
                     value = areaM2,
                     onValueChange = { areaM2 = it },
-                    label = { Text("Площа за документами, м² (необов'язково)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Площа за документами (необов'язково)",
+                    unit = "м²",
+                    helperText = "З техпаспорта чи договору — застосунок звірить її з сумою площ кімнат"
                 )
             }
         },

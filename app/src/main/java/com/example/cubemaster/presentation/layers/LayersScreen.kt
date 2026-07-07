@@ -76,7 +76,7 @@ fun LayersScreen(
                     if (state.surface != null) {
                         LayerStackIndicator(
                             layers = state.surface!!.layers,
-                            modifier = Modifier.width(120.dp).height(20.dp)
+                            modifier = Modifier.width(120.dp).height(10.dp)
                         )
                     }
                 }

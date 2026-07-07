@@ -83,12 +83,12 @@ fun EstimateScreen(
                 ) {
                     Text("Прорабська націнка:", style = MaterialTheme.typography.labelMedium)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
+                        NumberInputField(
                             value = state.markupPercent.toInt().toString(),
                             onValueChange = { v -> v.replace(",", ".").toDoubleOrNull()?.let { viewModel.updateMarkup(it) } },
-                            suffix = { Text("%") },
-                            modifier = Modifier.width(80.dp),
-                            singleLine = true
+                            label = "",
+                            unit = "%",
+                            modifier = Modifier.width(80.dp)
                         )
                     }
                 }

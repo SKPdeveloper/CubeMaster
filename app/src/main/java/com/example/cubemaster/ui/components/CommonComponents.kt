@@ -53,6 +53,23 @@ fun CubeMasterTopBar(
     )
 }
 
+// Пропускає лише цифри та одну кому/крапку (нормалізовану до коми — десятковий
+// роздільник у нашому UI), решту введених символів мовчки відкидає.
+private fun sanitizeNumericInput(input: String): String {
+    val sb = StringBuilder()
+    var separatorSeen = false
+    for (c in input) {
+        when {
+            c.isDigit() -> sb.append(c)
+            (c == ',' || c == '.') && !separatorSeen -> {
+                sb.append(',')
+                separatorSeen = true
+            }
+        }
+    }
+    return sb.toString()
+}
+
 @Composable
 fun NumberInputField(
     value: String,
@@ -61,12 +78,13 @@ fun NumberInputField(
     unit: String = "",
     isError: Boolean = false,
     errorMessage: String? = null,
+    helperText: String? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { raw -> onValueChange(sanitizeNumericInput(raw)) },
             label = { Text(label) },
             suffix = if (unit.isNotEmpty()) ({ Text(unit, style = MaterialTheme.typography.bodySmall) }) else null,
             isError = isError,
@@ -78,6 +96,13 @@ fun NumberInputField(
             Text(
                 text = errorMessage,
                 color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
+        } else if (helperText != null) {
+            Text(
+                text = helperText,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp)
             )

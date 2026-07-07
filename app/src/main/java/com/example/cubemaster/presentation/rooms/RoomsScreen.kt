@@ -161,7 +161,7 @@ private fun RoomCard(
                 val totalLayers = item.surfaces.sumOf { it.layers.size }
                 LayerStackIndicator(
                     layers = item.surfaces.firstOrNull { it.kind.name == "Floor" }?.layers ?: emptyList(),
-                    modifier = Modifier.fillMaxWidth().height(16.dp)
+                    modifier = Modifier.fillMaxWidth().height(8.dp)
                 )
                 Spacer(Modifier.height(4.dp))
                 CompletionBadge(totalLayers)

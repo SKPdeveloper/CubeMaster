@@ -32,11 +32,11 @@ fun LayerStackIndicator(
         CubeMasterColors.graphiteMid.copy(alpha = 0.5f)
     )
 
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(32.dp)
-    ) {
+    // Розмір повністю визначає викликач через modifier — раніше тут форсовано
+    // ставились fillMaxWidth()+height(32.dp), які перекривали передані менші
+    // значення (16-24dp) і фіксовану ширину, через що смуга виглядала товстіше,
+    // ніж задумано на кожному конкретному екрані.
+    Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         val totalLayers = layers.size
@@ -50,19 +50,23 @@ fun LayerStackIndicator(
             drawRect(
                 color = color,
                 topLeft = Offset(0f, y),
-                size = Size(w, layerH - 1f)
+                size = Size(w, (layerH - 1f).coerceAtLeast(1f))
             )
 
-            // Орнаментальна штриховка на ярусі — невелика геометрія
-            val patternStep = 12f
-            var px = 0f
-            while (px < w) {
-                drawRect(
-                    color = color.copy(alpha = color.alpha * 0.5f),
-                    topLeft = Offset(px, y + 1f),
-                    size = Size(4f, layerH - 2f)
-                )
-                px += patternStep
+            // Орнаментальна штриховка — лише якщо ярус досить товстий, щоб її було видно;
+            // на тонкій смузі з багатьма шарами штрихування лише зашумлює суцільний колір.
+            val hatchHeight = layerH - 2f
+            if (hatchHeight >= 2f) {
+                val patternStep = 12f
+                var px = 0f
+                while (px < w) {
+                    drawRect(
+                        color = color.copy(alpha = color.alpha * 0.5f),
+                        topLeft = Offset(px, y + 1f),
+                        size = Size(4f, hatchHeight)
+                    )
+                    px += patternStep
+                }
             }
         }
     }

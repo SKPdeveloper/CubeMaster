@@ -9,6 +9,7 @@ import com.example.cubemaster.presentation.demolition.DemolitionScreen
 import com.example.cubemaster.presentation.documents.ProjectDocumentsScreen
 import com.example.cubemaster.presentation.estimate.EstimateScreen
 import com.example.cubemaster.presentation.geometry.GeometryScreen
+import com.example.cubemaster.presentation.help.HelpScreen
 import com.example.cubemaster.presentation.layers.LayersScreen
 import com.example.cubemaster.presentation.objectplan.ObjectPlanScreen
 import com.example.cubemaster.presentation.profile.ProfileScreen
@@ -41,6 +42,7 @@ sealed class Screen(val route: String) {
     }
     object Catalog : Screen("catalog")
     object Profile : Screen("profile")
+    object Help : Screen("help")
     object ProjectDocuments : Screen("project-documents/{projectId}") {
         fun createRoute(projectId: String) = "project-documents/$projectId"
     }
@@ -71,7 +73,8 @@ fun AppNavigation(startDestination: String = Screen.Projects.route, pendingShort
                     navController.navigate(Screen.Summary.createRoute(projectId))
                 },
                 onCatalogClick = { navController.navigate(Screen.Catalog.route) },
-                onProfileClick = { navController.navigate(Screen.Profile.route) }
+                onProfileClick = { navController.navigate(Screen.Profile.route) },
+                onHelpClick = { navController.navigate(Screen.Help.route) }
             )
         }
 
@@ -185,6 +188,10 @@ fun AppNavigation(startDestination: String = Screen.Projects.route, pendingShort
 
         composable(Screen.Profile.route) {
             ProfileScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Help.route) {
+            HelpScreen(onBack = { navController.popBackStack() })
         }
 
         composable(
