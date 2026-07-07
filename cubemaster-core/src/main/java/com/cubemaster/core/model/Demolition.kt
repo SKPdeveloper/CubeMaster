@@ -23,7 +23,8 @@ data class DemolitionResult(
     val debrisVolumeM3: Double,
     val debrisMassKg: Double,
     val laborHours: Double,
-    val materialLines: List<DemolitionMaterialLine>
+    val materialLines: List<DemolitionMaterialLine>,
+    val warnings: List<String> = emptyList()
 )
 
 data class DemolitionMaterialLine(

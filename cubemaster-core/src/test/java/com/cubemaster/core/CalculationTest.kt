@@ -109,4 +109,68 @@ class CalculationTest {
         val porousL = porous.additionalLines.firstOrNull()?.qty ?: 0.0
         assertEquals(normalL * 1.5, porousL, 0.01)
     }
+
+    @Test
+    fun `прорізання отвору в цегляній стіні — без попередження`() {
+        val result = calculateOpeningCut(1.0, 2.0, WallMaterial.Brick)
+        // periметр різу = 2*(1+2) = 6 м; продуктивність штроборізом 0.45 м/год
+        assertEquals(6.0 / 0.45, result.laborHours, 0.01)
+        assertEquals(0.4, result.debrisVolumeM3, 0.001)
+        assertTrue(result.warnings.isEmpty())
+    }
+
+    @Test
+    fun `прорізання отвору в залізобетоні — попередження ДБН`() {
+        val result = calculateOpeningCut(1.0, 2.0, WallMaterial.ReinforcedConcrete)
+        // алмазне різання 0.75 м/год
+        assertEquals(6.0 / 0.75, result.laborHours, 0.01)
+        assertTrue(result.warnings.any { it.contains("ДБН В.1.2-14:2018") })
+    }
+
+    @Test
+    fun `демонтаж штукатурки — гіпсова на стелі`() {
+        val result = calculatePlasterRemoval(10.0, isGypsum = true, isCeiling = true)
+        // продуктивність 5.0 * 0.8 = 4.0 м²/люд·год
+        assertEquals(10.0 / 4.0, result.laborHours, 0.01)
+        assertEquals(0.25, result.debrisVolumeM3, 0.001)
+    }
+
+    @Test
+    fun `демонтаж плитки — обсяг і маса сміття`() {
+        val result = calculateTileRemoval(9.0)
+        assertEquals(9.0 * 0.012, result.debrisVolumeM3, 0.001)
+        assertEquals(9.0 / 3.0, result.laborHours, 0.01)
+    }
+
+    @Test
+    fun `демонтаж стяжки 50 мм — обсяг з коефіцієнтом розпушення`() {
+        val result = calculateScreedRemoval(10.0, 50.0)
+        assertEquals(10.0 * 0.05 * 1.4, result.debrisVolumeM3, 0.001)
+        assertEquals(10.0, result.laborHours, 0.01)
+    }
+
+    @Test
+    fun `демонтаж підлогового покриття — розрахунок`() {
+        val result = calculateFlooringRemoval(23.0)
+        assertEquals(23.0 * 0.015, result.debrisVolumeM3, 0.001)
+        assertEquals(23.0 / 11.5, result.laborHours, 0.01)
+    }
+
+    @Test
+    fun `видалення фарби феном — попередження про токсичні випари`() {
+        val result = calculatePaintRemoval(
+            PaintRemovalParams(10.0, PaintType.OilBased, PaintSubstrate.Plaster, PaintRemovalMethod.HeatGun, 2)
+        )
+        assertEquals(10.0 / 2.0, result.laborHours, 0.01)
+        assertTrue(result.warnings.any { it.contains("токсичні пари") })
+    }
+
+    @Test
+    fun `видалення водоемульсійної фарби шліфмашиною — без попереджень`() {
+        val result = calculatePaintRemoval(
+            PaintRemovalParams(10.0, PaintType.WaterBased, PaintSubstrate.Plaster, PaintRemovalMethod.MechanicalGrinder, 2)
+        )
+        assertEquals(10.0 / 4.0, result.laborHours, 0.01)
+        assertTrue(result.warnings.isEmpty())
+    }
 }

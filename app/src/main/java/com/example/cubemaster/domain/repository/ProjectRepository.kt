@@ -189,19 +189,39 @@ class DemolitionRepository @Inject constructor(
                     id = e.id,
                     roomId = e.roomId,
                     kind = DemolitionKind.valueOf(e.kind),
-                    params = emptyMap(),
+                    params = parseParams(e.paramsJson),
                     cachedResult = e.cachedResultJson?.let { parseCachedResult(it) }
                 )
             }
         }
 
+    // Раніше params завжди повертався порожнім, хоча вхідні дані форми (довжина/висота/
+    // матеріал тощо) реально зберігались у paramsJson — картки списку завдань демонтажу
+    // не могли показати, що саме додав користувач.
+    private fun parseParams(paramsJson: String): Map<String, Any> = try {
+        json.parseToJsonElement(paramsJson).jsonObject.mapValues { (_, v) ->
+            val prim = v.jsonPrimitive
+            prim.doubleOrNull ?: prim.booleanOrNull ?: prim.content
+        }
+    } catch (_: Exception) {
+        emptyMap()
+    }
+
     private fun parseCachedResult(resultJson: String): DemolitionResult {
         val obj = json.parseToJsonElement(resultJson).jsonObject
+        val materialLines = obj["materialLines"]?.jsonArray?.map { el ->
+            val o = el.jsonObject
+            DemolitionMaterialLine(
+                descriptionUa = o.getValue("descriptionUa").jsonPrimitive.content,
+                qty = o.getValue("qty").jsonPrimitive.double,
+                unit = MeasurementUnit.valueOf(o.getValue("unit").jsonPrimitive.content)
+            )
+        } ?: emptyList()
         return DemolitionResult(
             debrisVolumeM3 = obj.getValue("debrisVolumeM3").jsonPrimitive.double,
             debrisMassKg = obj.getValue("debrisMassKg").jsonPrimitive.double,
             laborHours = obj.getValue("laborHours").jsonPrimitive.double,
-            materialLines = emptyList()
+            materialLines = materialLines
         )
     }
 

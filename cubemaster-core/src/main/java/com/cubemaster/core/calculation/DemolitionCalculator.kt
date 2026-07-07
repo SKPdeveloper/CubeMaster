@@ -5,6 +5,14 @@ import kotlin.math.ceil
 
 private const val BULKING_FACTOR = 1.4
 
+// Єдине джерело тексту попередження про ДБН — і для розрахунку (щоб потрапило
+// у DemolitionResult.warnings), і для живого попередження в UI до підтвердження форми.
+fun wallDemolitionWarnings(material: WallMaterial): List<String> =
+    if (material == WallMaterial.ReinforcedConcrete) listOf(
+        "УВАГА: Демонтаж залізобетонних конструкцій потребує перевірки несучої функції та проєкту перепланування. " +
+        "Самовільний знос несучої стіни/плити перекриття є порушенням ДБН В.1.2-14:2018."
+    ) else emptyList()
+
 fun calculateWallRemoval(
     lengthM: Double,
     heightM: Double,
@@ -20,18 +28,14 @@ fun calculateWallRemoval(
         material.productivityManualM2PerHour
     val laborHours = if (productivity > 0) (lengthM * heightM) / productivity else 0.0
 
-    val warnings = if (material == WallMaterial.ReinforcedConcrete) listOf(
-        "УВАГА: Демонтаж залізобетонних конструкцій потребує перевірки несучої функції та проєкту перепланування. " +
-        "Самовільний знос несучої стіни/плити перекриття є порушенням ДБН В.1.2-14:2018."
-    ) else emptyList()
-
     return DemolitionResult(
         debrisVolumeM3 = volumeM3 * BULKING_FACTOR,
         debrisMassKg = debrisMassKg,
         laborHours = laborHours,
         materialLines = listOf(
             DemolitionMaterialLine("Будівельне сміття (${material.nameUa})", volumeM3 * BULKING_FACTOR, MeasurementUnit.M3)
-        )
+        ),
+        warnings = wallDemolitionWarnings(material)
     )
 }
 
@@ -54,7 +58,10 @@ fun calculateOpeningCut(
         laborHours = laborHours,
         materialLines = listOf(
             DemolitionMaterialLine("Підсилення прорізу (кутник/швелер, опційно)", reinforcementM, MeasurementUnit.M)
-        )
+        ),
+        // Прорізання отвору в несучій стіні так само порушує ДБН В.1.2-14:2018 без проєкту
+        // підсилення, як і повний знос — раніше тут попередження не було взагалі.
+        warnings = wallDemolitionWarnings(wallMaterial)
     )
 }
 
@@ -103,6 +110,18 @@ fun calculateFlooringRemoval(areaM2: Double): DemolitionResult {
     )
 }
 
+// Єдине джерело тексту попереджень для видалення фарби — і для розрахунку,
+// і для живого попередження в діалозі UI до підтвердження форми.
+fun paintRemovalWarnings(paintType: PaintType, removalMethod: PaintRemovalMethod): List<String> = buildList {
+    if (paintType == PaintType.Unknown) {
+        add("Тип фарби не визначено — розрахунок за найважчим сценарієм (олійна/алкідна). " +
+            "Олійна/алкідна фарба глянцева, не змивається водою з милом.")
+    }
+    if (removalMethod == PaintRemovalMethod.HeatGun) {
+        add("При нагріванні старої олійної/алкідної фарби виділяються токсичні пари. Обов'язкова вентиляція.")
+    }
+}
+
 fun calculatePaintRemoval(params: PaintRemovalParams): DemolitionResult {
     val productivityM2PerHour = when (params.paintType) {
         PaintType.WaterBased -> when (params.removalMethod) {
@@ -118,15 +137,7 @@ fun calculatePaintRemoval(params: PaintRemovalParams): DemolitionResult {
         PaintType.Unknown -> 0.55 // найгірший сценарій
     }
 
-    val warnings = buildList {
-        if (params.paintType == PaintType.Unknown) {
-            add("Тип фарби не визначено — розрахунок за найважчим сценарієм (олійна/алкідна). " +
-                "Олійна/алкідна фарба глянцева, не змивається водою з милом.")
-        }
-        if (params.removalMethod == PaintRemovalMethod.HeatGun) {
-            add("При нагріванні старої олійної/алкідної фарби виділяються токсичні пари. Обов'язкова вентиляція.")
-        }
-    }
+    val warnings = paintRemovalWarnings(params.paintType, params.removalMethod)
 
     val chemWaitHours = if (params.removalMethod == PaintRemovalMethod.ChemicalStripper) {
         params.areaM2 / 10.0 * 0.5 // 20-40хв на кожні 10 м²
@@ -136,7 +147,8 @@ fun calculatePaintRemoval(params: PaintRemovalParams): DemolitionResult {
         debrisVolumeM3 = params.areaM2 * 0.002 * params.layersCountEstimate,
         debrisMassKg = params.areaM2 * 0.002 * params.layersCountEstimate * 1200.0,
         laborHours = params.areaM2 / productivityM2PerHour + chemWaitHours,
-        materialLines = emptyList()
+        materialLines = emptyList(),
+        warnings = warnings
     )
 }
 

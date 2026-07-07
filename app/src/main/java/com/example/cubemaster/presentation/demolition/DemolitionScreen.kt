@@ -9,11 +9,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cubemaster.core.calculation.paintRemovalWarnings
+import com.cubemaster.core.calculation.wallDemolitionWarnings
 import com.cubemaster.core.model.*
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
@@ -57,23 +60,23 @@ fun DemolitionScreen(
             Text("Додати роботи:", style = MaterialTheme.typography.titleSmall)
 
             val demolitionKinds = listOf(
-                DemolitionKind.WallRemoval to "Знесення стін",
-                DemolitionKind.OpeningCut to "Прорізання прорізів",
-                DemolitionKind.PlasterRemoval to "Демонтаж штукатурки",
-                DemolitionKind.TileRemoval to "Демонтаж плитки",
-                DemolitionKind.ScreedRemoval to "Демонтаж стяжки",
-                DemolitionKind.FlooringRemoval to "Демонтаж підлогового покриття",
-                DemolitionKind.PaintRemoval to "Видалення фарби"
+                DemolitionKind.WallRemoval,
+                DemolitionKind.OpeningCut,
+                DemolitionKind.PlasterRemoval,
+                DemolitionKind.TileRemoval,
+                DemolitionKind.ScreedRemoval,
+                DemolitionKind.FlooringRemoval,
+                DemolitionKind.PaintRemoval
             )
 
-            demolitionKinds.forEach { (kind, label) ->
+            demolitionKinds.forEach { kind ->
                 OutlinedButton(
                     onClick = { showAddDialog = kind },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Add, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(label)
+                    Text(demolitionKindLabel(kind))
                 }
             }
 
@@ -90,6 +93,13 @@ fun DemolitionScreen(
                         style = MaterialTheme.typography.bodyMedium)
                     Text("Контейнери 8 м³: ${state.containersCount} шт.",
                         style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            if (state.tasks.isNotEmpty()) {
+                Text("Додані роботи:", style = MaterialTheme.typography.titleSmall)
+                state.tasks.forEach { task ->
+                    DemolitionTaskRow(task = task, onDelete = { viewModel.deleteTask(task.id) })
                 }
             }
 
@@ -123,6 +133,7 @@ private fun DemolitionAddDialog(
 ) {
     when (kind) {
         DemolitionKind.WallRemoval -> WallRemovalDialog(onDismiss, viewModel)
+        DemolitionKind.OpeningCut -> OpeningCutDialog(onDismiss, viewModel)
         DemolitionKind.PlasterRemoval -> PlasterRemovalDialog(onDismiss, viewModel)
         DemolitionKind.TileRemoval -> SimpleAreaDialog("Демонтаж плитки", onDismiss) { area ->
             viewModel.addTileRemoval(area); onDismiss()
@@ -175,12 +186,12 @@ private fun WallRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewMo
                         }
                     }
                 }
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(powered, { powered = it })
                     Text("З відбійним молотком")
                 }
-                if (material == WallMaterial.ReinforcedConcrete) {
-                    WarningCard("Залізобетон: обов'язкова перевірка несучої функції!")
+                wallDemolitionWarnings(material).forEach { warning ->
+                    WarningCard(warning)
                 }
             }
         },
@@ -191,6 +202,56 @@ private fun WallRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewMo
                     height.replace(",", ".").toDoubleOrNull() ?: 0.0,
                     thickness.replace(",", ".").toDoubleOrNull() ?: 0.0,
                     material, powered
+                )
+                onDismiss()
+            }) { Text("Додати") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Скасувати") } }
+    )
+}
+
+@Composable
+private fun OpeningCutDialog(onDismiss: () -> Unit, viewModel: DemolitionViewModel) {
+    var width by remember { mutableStateOf("") }
+    var height by remember { mutableStateOf("") }
+    var material by remember { mutableStateOf(WallMaterial.Brick) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
+        title = { Text("Прорізання прорізів") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                NumberInputField(width, { width = it }, "Ширина прорізу", "м")
+                NumberInputField(height, { height = it }, "Висота прорізу", "м")
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(expanded, { expanded = it }) {
+                    OutlinedTextField(
+                        material.nameUa, {}, readOnly = true, label = { Text("Матеріал стіни") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(expanded, { expanded = false }) {
+                        WallMaterial.entries.forEach { m ->
+                            DropdownMenuItem(text = { Text(m.nameUa) }, onClick = { material = m; expanded = false })
+                        }
+                    }
+                }
+                wallDemolitionWarnings(material).forEach { warning ->
+                    WarningCard(warning)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                viewModel.addOpeningCut(
+                    width.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                    height.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                    material
                 )
                 onDismiss()
             }) { Text("Додати") }
@@ -216,11 +277,11 @@ private fun PlasterRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionVie
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 NumberInputField(area, { area = it }, "Площа", "м²")
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(isGypsum, { isGypsum = it })
                     Text("Гіпсова штукатурка (не ЦПС)")
                 }
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(isCeiling, { isCeiling = it })
                     Text("Стеля (×0.8 від продуктивності)")
                 }
@@ -284,14 +345,14 @@ private fun PaintRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewM
                 NumberInputField(area, { area = it }, "Площа", "м²")
                 Text("Тип фарби:", style = MaterialTheme.typography.labelMedium)
                 PaintType.entries.forEach { t ->
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(paintType == t, { paintType = t })
                         Text(paintTypeLabel(t))
                     }
                 }
                 Text("Метод видалення:", style = MaterialTheme.typography.labelMedium)
                 PaintRemovalMethod.entries.forEach { m ->
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(method == m, { method = m })
                         Text(methodLabel(m))
                     }
@@ -300,8 +361,8 @@ private fun PaintRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewM
                     layers, { layers = it }, "К-сть шарів (орієнтовно)", "",
                     helperText = "Скільки разів перефарбовували поверхню — впливає на об'єм відходів"
                 )
-                if (paintType == PaintType.Unknown) {
-                    WarningCard("Невідомий тип фарби — розрахунок за найважчим сценарієм")
+                paintRemovalWarnings(paintType, method).forEach { warning ->
+                    WarningCard(warning)
                 }
             }
         },
@@ -348,4 +409,70 @@ private fun methodLabel(m: PaintRemovalMethod) = when (m) {
     PaintRemovalMethod.HeatGun -> "Будівельний фен"
     PaintRemovalMethod.ChemicalStripper -> "Хімічна змивка"
     PaintRemovalMethod.Combined -> "Комбінований"
+}
+
+private fun demolitionKindLabel(kind: DemolitionKind) = when (kind) {
+    DemolitionKind.WallRemoval -> "Знесення стін"
+    DemolitionKind.OpeningCut -> "Прорізання прорізів"
+    DemolitionKind.PlasterRemoval -> "Демонтаж штукатурки"
+    DemolitionKind.TileRemoval -> "Демонтаж плитки"
+    DemolitionKind.ScreedRemoval -> "Демонтаж стяжки"
+    DemolitionKind.FlooringRemoval -> "Демонтаж підлогового покриття"
+    DemolitionKind.CeilingRemoval -> "Демонтаж стелі"
+    DemolitionKind.PaintRemoval -> "Видалення фарби"
+}
+
+private fun fmt(v: Double) = String.format("%.1f", v)
+
+// Людяний опис параметрів завдання демонтажу — раніше params взагалі не парсились
+// назад із збереженого JSON, тож список завдань не міг показати, що саме додав користувач.
+private fun taskSummary(task: DemolitionTask): String {
+    val p = task.params
+    fun d(key: String) = (p[key] as? Double) ?: 0.0
+    fun materialLabel() = (p["material"] as? String)
+        ?.let { runCatching { WallMaterial.valueOf(it).nameUa }.getOrNull() } ?: ""
+    return when (task.kind) {
+        DemolitionKind.WallRemoval -> "${fmt(d("lengthM"))}×${fmt(d("heightM"))} м, ${materialLabel()}"
+        DemolitionKind.OpeningCut -> "${fmt(d("widthM"))}×${fmt(d("heightM"))} м, ${materialLabel()}"
+        DemolitionKind.PlasterRemoval ->
+            "${fmt(d("areaM2"))} м², ${if (p["isGypsum"] == true) "гіпсова" else "ЦПС"}"
+        DemolitionKind.TileRemoval -> "${fmt(d("areaM2"))} м²"
+        DemolitionKind.ScreedRemoval -> "${fmt(d("areaM2"))} м², товщина ${fmt(d("thicknessMm"))} мм"
+        DemolitionKind.FlooringRemoval -> "${fmt(d("areaM2"))} м²"
+        DemolitionKind.PaintRemoval -> {
+            val type = (p["paintType"] as? String)?.let { runCatching { paintTypeLabel(PaintType.valueOf(it)) }.getOrNull() } ?: ""
+            "${fmt(d("areaM2"))} м², $type"
+        }
+        DemolitionKind.CeilingRemoval -> ""
+    }
+}
+
+@Composable
+private fun DemolitionTaskRow(task: DemolitionTask, onDelete: () -> Unit) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(demolitionKindLabel(task.kind), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    taskSummary(task),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                task.cachedResult?.let { r ->
+                    Text(
+                        "${String.format("%.2f", r.debrisVolumeM3)} м³ сміття · ${String.format("%.1f", r.laborHours)} люд·год",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CubeMasterColors.gold
+                    )
+                }
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Close, contentDescription = "Видалити", tint = CubeMasterColors.error.copy(0.7f))
+            }
+        }
+    }
 }

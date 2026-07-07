@@ -93,6 +93,13 @@ class DemolitionViewModel @Inject constructor(
         saveTask(DemolitionKind.FlooringRemoval, buildJsonObject { put("areaM2", areaM2) }, result)
     }
 
+    fun addOpeningCut(widthM: Double, heightM: Double, material: WallMaterial) {
+        val result = calculateOpeningCut(widthM, heightM, material)
+        saveTask(DemolitionKind.OpeningCut, buildJsonObject {
+            put("widthM", widthM); put("heightM", heightM); put("material", material.name)
+        }, result)
+    }
+
     fun addPaintRemoval(params: PaintRemovalParams) {
         val result = calculatePaintRemoval(params)
         saveTask(DemolitionKind.PaintRemoval, buildJsonObject {
@@ -112,6 +119,17 @@ class DemolitionViewModel @Inject constructor(
             put("debrisVolumeM3", result.debrisVolumeM3)
             put("debrisMassKg", result.debrisMassKg)
             put("laborHours", result.laborHours)
+            // Раніше рядки матеріалів (наприклад "Будівельне сміття") тут не зберігались
+            // і губились після перезапуску застосунку.
+            put("materialLines", buildJsonArray {
+                result.materialLines.forEach { line ->
+                    add(buildJsonObject {
+                        put("descriptionUa", line.descriptionUa)
+                        put("qty", line.qty)
+                        put("unit", line.unit.name)
+                    })
+                }
+            })
         }
         val entity = DemolitionTaskEntity(
             id = UUID.randomUUID().toString(),
@@ -131,7 +149,7 @@ class DemolitionViewModel @Inject constructor(
                 tasks = tasks,
                 totalDebrisM3 = totalDebrisM3,
                 totalLaborHours = totalLaborHours,
-                containersCount = kotlin.math.ceil(totalDebrisM3 / 8.0).toInt()
+                containersCount = debrisContainersCount(totalDebrisM3)
             )
         }
     }
