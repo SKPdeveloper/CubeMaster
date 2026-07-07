@@ -39,6 +39,15 @@ class CatalogViewModel @Inject constructor(
             materialRepo.seedDefaults()
             _state.update { it.copy(entries = MaterialDefaults.catalog, isLoading = false) }
         }
+        // Довантажити вже збережені ціни (ручні чи раніше отримані зовнішні) одразу
+        // при відкритті екрана — раніше мапа заповнювалась лише на поточну сесію.
+        viewModelScope.launch {
+            materialRepo.observeLatestPrices().collect { entries ->
+                _state.update { s ->
+                    s.copy(prices = entries.associate { it.materialSku to it.unitPrice })
+                }
+            }
+        }
     }
 
     fun search(query: String) {
@@ -90,9 +99,35 @@ class CatalogViewModel @Inject constructor(
             try {
                 val skus = MaterialDefaults.catalog.map { it.sku }
                 val (updated, skipped) = firestore.callRefreshPrices(skus)
+                // Хмарна функція оновлює ціни лише у Firestore — довантажуємо їх
+                // назад у локальну базу, інакше оновлені ціни ніколи не з'являться
+                // на пристрої (бейдж ціни читає лише локальну БД).
+                cachePublicPrices(skus)
                 _state.update { it.copy(refreshResult = "Оновлено: $updated, пропущено: $skipped") }
             } catch (e: Exception) {
                 _state.update { it.copy(refreshResult = "Помилка оновлення: ${e.message}") }
+            }
+        }
+    }
+
+    private suspend fun cachePublicPrices(skus: List<String>) {
+        for (sku in skus) {
+            try {
+                val latest = firestore.fetchPublicPrices(sku).lastOrNull() ?: continue
+                materialRepo.upsertPrice(
+                    PriceEntryEntity(
+                        id = latest["id"] as? String ?: continue,
+                        materialSku = latest["materialSku"] as? String ?: sku,
+                        vendor = latest["vendor"] as? String ?: "",
+                        unitPrice = (latest["unitPrice"] as? Number)?.toDouble() ?: continue,
+                        currency = latest["currency"] as? String ?: "UAH",
+                        source = latest["source"] as? String ?: "Scraped",
+                        fetchedAt = (latest["fetchedAt"] as? Number)?.toLong() ?: Instant.now().toEpochMilli(),
+                        vendorUrl = latest["vendorUrl"] as? String
+                    )
+                )
+            } catch (_: Exception) {
+                // Пропускаємо конкретний SKU при помилці мережі/парсингу — решта каталогу мають оновитись.
             }
         }
     }

@@ -130,11 +130,14 @@ class FirestoreRepository @Inject constructor(
 
     // ---- Prices ----
 
+    // Документ Firestore не несе своє id у .data — додаємо його явно, щоб той самий
+    // запис при повторній синхронізації перезаписував локальний рядок (@Upsert),
+    // а не плодив дублікати з новим випадковим id щоразу.
     suspend fun fetchPublicPrices(sku: String): List<Map<String, Any>> =
         firestore.collection("priceEntries")
             .whereEqualTo("materialSku", sku)
             .orderBy("fetchedAt")
-            .get().await().documents.mapNotNull { it.data }
+            .get().await().documents.mapNotNull { doc -> doc.data?.plus("id" to doc.id) }
 
     suspend fun uploadManualPrice(uid: String, price: PriceEntry) {
         val data = mapOf(

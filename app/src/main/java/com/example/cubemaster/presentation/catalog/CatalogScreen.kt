@@ -108,7 +108,9 @@ private fun MaterialEntryCard(
     latestPrice: Double?,
     onSetPrice: (Double) -> Unit
 ) {
-    var priceInput by remember { mutableStateOf(latestPrice?.toString() ?: "") }
+    // Ключ на latestPrice — щоб поле оновилось, коли ціна довантажиться з БД
+    // (наприклад, одразу після відкриття екрана чи після "Оновити ціни").
+    var priceInput by remember(latestPrice) { mutableStateOf(latestPrice?.toString() ?: "") }
 
     GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onToggle) {
         Column(modifier = Modifier.padding(12.dp)) {

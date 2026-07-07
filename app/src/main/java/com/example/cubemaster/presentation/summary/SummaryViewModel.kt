@@ -154,7 +154,7 @@ class SummaryViewModel @Inject constructor(
             LayerType.FlooringTile, LayerType.FlooringLinoleum -> calculateFlooring(areaM2, layer.layerType, layer.isDiagonal)
             LayerType.WallPaint -> calculatePaint(areaM2)
             LayerType.WallDrywall -> calculateDrywall(areaM2)
-            LayerType.WallTile -> calculateWallTile(areaM2)
+            LayerType.WallTile -> calculateWallTile(areaM2, norm = norm)
             else -> LayerResult(0.0, 0)
         }
     }

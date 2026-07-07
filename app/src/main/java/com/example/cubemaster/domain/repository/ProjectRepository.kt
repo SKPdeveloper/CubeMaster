@@ -267,6 +267,11 @@ class MaterialRepository @Inject constructor(
     fun observePrices(sku: String): Flow<List<com.example.cubemaster.data.local.entity.PriceEntryEntity>> =
         db.priceEntryDao().observeBySku(sku)
 
+    // Остання відома ціна (ручна чи зовнішня) для кожного матеріалу каталогу — саме
+    // те, що показує бейдж ціни на картці Каталогу одразу при відкритті екрана.
+    fun observeLatestPrices(): Flow<List<com.example.cubemaster.data.local.entity.PriceEntryEntity>> =
+        db.priceEntryDao().observeLatestPrices()
+
     suspend fun upsertPrice(entry: com.example.cubemaster.data.local.entity.PriceEntryEntity) {
         db.priceEntryDao().upsert(entry)
     }

@@ -117,12 +117,17 @@ fun calculatePrimer(
 
 fun calculateWallTile(
     wallAreaM2: Double,
-    isComplexGeometry: Boolean = false
+    isComplexGeometry: Boolean = false,
+    norm: ConsumptionNorm? = null
 ): LayerResult {
     var waste = 0.10
     if (isComplexGeometry) waste += 0.05
     val totalM2 = wallAreaM2 * (1 + waste)
-    val adhesiveKg = wallAreaM2 * 4.5
+    // Норма з каталогу (TILE_ADHESIVE: 4-6 кг/м², типово 5.0) — раніше тут був
+    // захардкоджений 4.5, який розходився з нормою й з calculateFlooring для того
+    // самого клею на підлозі.
+    val adhesiveKgPerM2 = norm?.lPerM2 ?: 4.5
+    val adhesiveKg = wallAreaM2 * adhesiveKgPerM2
     return LayerResult(
         mixMassKg = adhesiveKg,
         bagsCount = ceil(adhesiveKg / PACK_25_KG).toInt(),

@@ -176,6 +176,17 @@ interface PriceEntryDao {
     @Query("SELECT * FROM price_entries WHERE materialSku = :sku ORDER BY fetchedAt DESC LIMIT 1")
     suspend fun getLatestBySku(sku: String): PriceEntryEntity?
 
+    // Остання (за fetchedAt) ціна для кожного SKU одразу для всього каталогу —
+    // щоб екран Каталогу міг показати вже збережені ціни одразу при відкритті,
+    // а не лише ті, що ввели в поточній сесії.
+    @Query("""
+        SELECT * FROM price_entries pe
+        WHERE pe.fetchedAt = (
+            SELECT MAX(fetchedAt) FROM price_entries WHERE materialSku = pe.materialSku
+        )
+    """)
+    fun observeLatestPrices(): Flow<List<PriceEntryEntity>>
+
     @Upsert
     suspend fun upsert(entry: PriceEntryEntity)
 
