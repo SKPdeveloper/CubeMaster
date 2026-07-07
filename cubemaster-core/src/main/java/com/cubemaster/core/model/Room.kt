@@ -38,7 +38,8 @@ data class Opening(
     val heightMm: Int,
     val sillHeightMm: Int = 0,
     // Відстань від початкової вершини стіни до початку отвору вздовж стіни.
-    val offsetMm: Int = 0
+    val offsetMm: Int = 0,
+    val syncState: SyncState = SyncState.PendingUpload
 )
 
 enum class OpeningKind { Window, Door, Passage, Vent, Niche }

@@ -80,6 +80,29 @@ class FirestoreRepository @Inject constructor(
         return roomsCol(uid, projectId).get().await().documents.mapNotNull { it.data }
     }
 
+    // ---- Openings ----
+
+    suspend fun uploadOpening(
+        uid: String, projectId: String, roomId: String,
+        opening: com.example.cubemaster.data.local.entity.OpeningEntity
+    ) {
+        val data = mapOf(
+            "id" to opening.id,
+            "roomId" to opening.roomId,
+            "wallEdgeIndex" to opening.wallEdgeIndex,
+            "kind" to opening.kind,
+            "widthMm" to opening.widthMm,
+            "heightMm" to opening.heightMm,
+            "sillHeightMm" to opening.sillHeightMm,
+            "offsetMm" to opening.offsetMm,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        openingsCol(uid, projectId, roomId).document(opening.id).set(data).await()
+    }
+
+    suspend fun fetchOpenings(uid: String, projectId: String, roomId: String): List<Map<String, Any>> =
+        openingsCol(uid, projectId, roomId).get().await().documents.mapNotNull { it.data }
+
     // ---- Surfaces ----
 
     suspend fun uploadSurface(

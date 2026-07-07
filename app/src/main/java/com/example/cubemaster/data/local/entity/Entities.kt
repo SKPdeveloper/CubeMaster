@@ -65,7 +65,8 @@ data class OpeningEntity(
     val widthMm: Int,
     val heightMm: Int,
     val sillHeightMm: Int = 0,
-    val offsetMm: Int = 0
+    val offsetMm: Int = 0,
+    val syncState: String = SyncState.PendingUpload.name
 )
 
 @Entity(

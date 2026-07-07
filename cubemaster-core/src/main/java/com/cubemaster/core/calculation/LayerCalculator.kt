@@ -102,7 +102,9 @@ fun calculatePrimer(
     surfaceAreaM2: Double,
     isPorous: Boolean = false
 ): LayerResult {
-    val lPerM2 = if (isPorous) 0.175 else 0.125
+    // ×1.5 для пористих основ — норма з MaterialDefaults.PRIMER_DEEP (minThicknessJustification).
+    val basePrimerLPerM2 = 0.125
+    val lPerM2 = if (isPorous) basePrimerLPerM2 * 1.5 else basePrimerLPerM2
     val totalL = surfaceAreaM2 * lPerM2
     return LayerResult(
         mixMassKg = totalL,

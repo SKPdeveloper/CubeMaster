@@ -44,6 +44,16 @@ class SyncWorker @AssistedInject constructor(
                 db.roomDao().updateSyncState(entity.id, SyncState.Synced.name)
             }
 
+            // Синхронізація прорізів (двері/вікна/вентиляція/ніші)
+            val pendingOpenings = db.openingDao().getPending()
+            for (entity in pendingOpenings) {
+                val room = db.roomDao().getById(entity.roomId)
+                if (room != null) {
+                    firestore.uploadOpening(uid, room.projectId, entity.roomId, entity)
+                    db.openingDao().updateSyncState(entity.id, SyncState.Synced.name)
+                }
+            }
+
             // Синхронізація кошторисів
             val pendingEstimates = db.estimateDao().getPending()
             for (entity in pendingEstimates) {

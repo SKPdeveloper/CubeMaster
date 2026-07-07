@@ -84,8 +84,14 @@ class GeometryEngineTest {
     }
 
     @Test
-    fun `маяки для стіни 2 м — 2 штуки`() {
+    fun `маяки для стіни 2 м з кроком 1,3 м — 3 штуки (кутові маяки на відстані 1,6 м вимагають проміжний)`() {
         val count = beaconsCountForWall(2.0)
+        assertEquals(3, count)
+    }
+
+    @Test
+    fun `маяки для короткої стіни без проміжних — 2 штуки`() {
+        val count = beaconsCountForWall(1.0)
         assertEquals(2, count)
     }
 

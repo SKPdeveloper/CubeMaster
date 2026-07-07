@@ -127,7 +127,8 @@ class RoomRepository @Inject constructor(
                     widthMm = it.widthMm,
                     heightMm = it.heightMm,
                     sillHeightMm = it.sillHeightMm,
-                    offsetMm = it.offsetMm
+                    offsetMm = it.offsetMm,
+                    syncState = SyncState.valueOf(it.syncState)
                 )
             }
         }
@@ -142,7 +143,9 @@ class RoomRepository @Inject constructor(
                 widthMm = opening.widthMm,
                 heightMm = opening.heightMm,
                 sillHeightMm = opening.sillHeightMm,
-                offsetMm = opening.offsetMm
+                offsetMm = opening.offsetMm,
+                // Кожна локальна зміна прорізу позначається як така, що потребує вивантаження.
+                syncState = SyncState.PendingUpload.name
             )
         )
     }

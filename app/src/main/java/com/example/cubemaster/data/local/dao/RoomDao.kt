@@ -49,6 +49,12 @@ interface OpeningDao {
 
     @Query("DELETE FROM openings WHERE roomId = :roomId")
     suspend fun deleteByRoom(roomId: String)
+
+    @Query("SELECT * FROM openings WHERE syncState != 'Synced'")
+    suspend fun getPending(): List<OpeningEntity>
+
+    @Query("UPDATE openings SET syncState = :state WHERE id = :id")
+    suspend fun updateSyncState(id: String, state: String)
 }
 
 @Dao
