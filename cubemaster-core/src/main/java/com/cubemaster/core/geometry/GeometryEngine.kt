@@ -7,59 +7,6 @@ import kotlin.math.*
 
 data class Vertex(val x: Double, val y: Double)
 
-data class PolygonResult(
-    val vertices: List<Vertex>,
-    val closureErrorM: Double,
-    val status: ClosureStatus,
-    val selfIntersects: Boolean = false
-)
-
-enum class ClosureStatus {
-    Ok,
-    WarningAutoFixed,
-    Error
-}
-
-fun buildPolygon(edges: List<Edge>): PolygonResult {
-    val n = edges.size
-    val vertices = mutableListOf(Vertex(0.0, 0.0))
-    var heading = 0.0
-    var x = 0.0
-    var y = 0.0
-
-    for (i in 0 until n) {
-        val lengthM = edges[i].lengthMm / 1000.0
-        x += lengthM * cos(heading)
-        y += lengthM * sin(heading)
-        vertices.add(Vertex(x, y))
-        if (i + 1 < n) {
-            val exterior = PI - Math.toRadians(edges[(i + 1) % n].interiorAngleDeg)
-            heading -= exterior
-        }
-    }
-
-    val errorX = vertices.last().x - vertices.first().x
-    val errorY = vertices.last().y - vertices.first().y
-    val closureErrorM = hypot(errorX, errorY)
-
-    val result = when {
-        closureErrorM <= 0.02 -> PolygonResult(
-            vertices.dropLast(1),
-            closureErrorM,
-            ClosureStatus.Ok
-        )
-        closureErrorM <= 0.10 -> {
-            val corrected = distributeClosureError(
-                vertices.dropLast(1),
-                Vertex(errorX, errorY)
-            )
-            PolygonResult(corrected, closureErrorM, ClosureStatus.WarningAutoFixed)
-        }
-        else -> PolygonResult(vertices.dropLast(1), closureErrorM, ClosureStatus.Error)
-    }
-    return result.copy(selfIntersects = hasSelfIntersection(result.vertices))
-}
-
 // Перевіряє, чи перетинаються дві непарні (несуміжні) відрізки-стіни — стандартний
 // орієнтаційний тест computational geometry (Cormen et al.).
 private fun segmentsIntersect(p1: Vertex, p2: Vertex, p3: Vertex, p4: Vertex): Boolean {
@@ -105,18 +52,6 @@ fun hasSelfIntersection(vertices: List<Vertex>): Boolean {
     return false
 }
 
-fun distributeClosureError(vertices: List<Vertex>, errorVector: Vertex): List<Vertex> {
-    val perimeter = vertices.indices.sumOf { i ->
-        distance(vertices[i], vertices[(i + 1) % vertices.size])
-    }
-    var cumulative = 0.0
-    return vertices.mapIndexed { i, v ->
-        val fraction = cumulative / perimeter
-        if (i + 1 < vertices.size) cumulative += distance(vertices[i], vertices[i + 1])
-        Vertex(v.x - errorVector.x * fraction, v.y - errorVector.y * fraction)
-    }
-}
-
 fun polygonAreaM2(vertices: List<Vertex>): Double {
     val n = vertices.size
     var area2 = 0.0
@@ -126,9 +61,6 @@ fun polygonAreaM2(vertices: List<Vertex>): Double {
     }
     return abs(area2) / 2.0
 }
-
-fun rectangleAreaM2(widthMm: Int, lengthMm: Int): Double =
-    (widthMm / 1000.0) * (lengthMm / 1000.0)
 
 // Вершини прямокутника за годинниковою стрілкою, той самий Vertex, що й у полігон-рушії —
 // щоб прямокутний і довільний режими малювались одним компонентом плану кімнати.
@@ -146,17 +78,12 @@ fun rectangleVertices(widthMm: Int, lengthMm: Int): List<Vertex> {
 fun perimeterM(vertices: List<Vertex>): Double =
     vertices.indices.sumOf { i -> distance(vertices[i], vertices[(i + 1) % vertices.size]) }
 
-fun rectanglePerimeterM(widthMm: Int, lengthMm: Int): Double =
-    2 * (widthMm + lengthMm) / 1000.0
-
 fun distance(a: Vertex, b: Vertex) = hypot(b.x - a.x, b.y - a.y)
 
-// Вершини кімнати незалежно від того, прямокутник вона чи довільний контур —
-// для будь-якого місця, де потрібно намалювати форму кімнати (прев'ю, мініатюра в списку).
-fun roomGeometryVertices(geometry: RoomGeometry): List<Vertex> = when (geometry) {
-    is RoomGeometry.Rectangle -> rectangleVertices(geometry.widthMm, geometry.lengthMm)
-    is RoomGeometry.Polygon -> buildPolygon(geometry.edges).vertices
-}
+// Вершини кімнати — для будь-якого місця, де потрібно намалювати форму
+// кімнати (прев'ю, мініатюра в списку).
+fun roomGeometryVertices(geometry: RoomGeometry): List<Vertex> =
+    (geometry as RoomGeometry.Polygon).vertices
 
 fun wallAreaGross(edgeLengthMm: Int, heightAtStartMm: Int, heightAtEndMm: Int): Double {
     val l = edgeLengthMm / 1000.0
@@ -332,4 +259,115 @@ fun verticesToEdges(vertices: List<Vertex>): List<Edge> {
         val lengthMm = Math.round(distance(curr, next) * 1000.0).toInt()
         Edge(lengthMm, interiorAngleDeg)
     }
+}
+
+// Пряме переміщення вершини — решта кімнати нерухома. Основний спосіб
+// "змінити кут": перетягнути вершину на канвасі.
+fun moveVertex(vertices: List<Vertex>, index: Int, newPosition: Vertex): List<Vertex> {
+    require(index in vertices.indices) { "Індекс вершини поза межами" }
+    return vertices.toMutableList().also { it[index] = newPosition }
+}
+
+// Вставляє нову вершину одразу після vertices[edgeIndex] (тобто на стіні
+// edgeIndex, що з'єднує vertices[edgeIndex] і vertices[(edgeIndex+1)%n]).
+// Прорізи на цій та наступних стінах треба переіндексувати окремо
+// (див. GeometryViewModel.insertVertex) — ця функція суто геометрична.
+fun insertVertexOnEdge(vertices: List<Vertex>, edgeIndex: Int, atPoint: Vertex): List<Vertex> {
+    val n = vertices.size
+    require(n >= 3 && edgeIndex in 0 until n) { "Некоректний індекс стіни" }
+    val result = vertices.toMutableList()
+    result.add(edgeIndex + 1, atPoint)
+    return result
+}
+
+// Видаляє вершину. Повертає null, якщо лишиться менше 3 вершин
+// (мінімальна кімната — трикутник). Виклик має бути заблокований на
+// рівні ViewModel, якщо на суміжних стінах є прорізи.
+fun removeVertex(vertices: List<Vertex>, index: Int): List<Vertex>? {
+    if (vertices.size <= 3) return null
+    require(index in vertices.indices) { "Індекс вершини поза межами" }
+    return vertices.toMutableList().also { it.removeAt(index) }
+}
+
+// Рухає vertices[edgeIndex + 1] вздовж поточного напрямку стіни edgeIndex
+// на нову довжину. vertices[edgeIndex] лишається нерухомим. Довжина
+// НАСТУПНОЇ стіни (edgeIndex+1) зміниться як похідний наслідок — обидва
+// її кінці визначені (нова позиція vertices[edgeIndex+1] і нерухома
+// vertices[edgeIndex+2]).
+fun setEdgeLength(vertices: List<Vertex>, edgeIndex: Int, newLengthMm: Int): List<Vertex> {
+    val n = vertices.size
+    require(n >= 3 && edgeIndex in 0 until n) { "Некоректний індекс стіни" }
+    val a = vertices[edgeIndex]
+    val bIndex = (edgeIndex + 1) % n
+    val b = vertices[bIndex]
+    val currentLength = distance(a, b)
+    if (currentLength < 1e-9) return vertices
+    val ratio = (newLengthMm / 1000.0) / currentLength
+    val newB = Vertex(a.x + (b.x - a.x) * ratio, a.y + (b.y - a.y) * ratio)
+    return vertices.toMutableList().also { it[bIndex] = newB }
+}
+
+// Внутрішній кут у вершині vertexIndex, коректний незалежно від напрямку
+// обходу списку (на відміну від verticesToEdges — не перевпорядковує
+// вершини, тому індекс не "з'їжджає").
+fun interiorAngleAtDeg(vertices: List<Vertex>, vertexIndex: Int): Double {
+    val n = vertices.size
+    val prev = vertices[(vertexIndex - 1 + n) % n]
+    val curr = vertices[vertexIndex]
+    val next = vertices[(vertexIndex + 1) % n]
+    val ax = curr.x - prev.x
+    val ay = curr.y - prev.y
+    val bx = next.x - curr.x
+    val by = next.y - curr.y
+    val crossAB = ax * by - ay * bx
+    val dotAB = ax * bx + ay * by
+    val exteriorTurnDeg = Math.toDegrees(atan2(crossAB, dotAB))
+    var area2 = 0.0
+    for (i in 0 until n) {
+        val j = (i + 1) % n
+        area2 += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
+    }
+    val orientedExterior = if (area2 < 0) -exteriorTurnDeg else exteriorTurnDeg
+    return 180.0 - orientedExterior
+}
+
+// Обертає vertices[vertexIndex] навколо vertices[vertexIndex-1] (нерухомої),
+// зберігаючи довжину стіни (vertexIndex-1 -> vertexIndex), поки внутрішній
+// кут у vertexIndex не стане newAngleDeg. vertices[vertexIndex+1] лишається
+// нерухомим — довжина стіни (vertexIndex -> vertexIndex+1) зміниться як
+// похідний наслідок. Розв'язується бісекцією (кут монотонний в межах
+// ±170° від поточного положення для простого багатокутника) — якщо ціль
+// поза цим діапазоном, повертає вершини без змін (безпечніше за хибний
+// результат).
+fun setInteriorAngle(vertices: List<Vertex>, vertexIndex: Int, newAngleDeg: Double): List<Vertex> {
+    val n = vertices.size
+    require(n >= 3 && vertexIndex in 0 until n) { "Некоректний індекс вершини" }
+    val prevIndex = (vertexIndex - 1 + n) % n
+    val prev = vertices[prevIndex]
+    val curr = vertices[vertexIndex]
+    val radius = distance(prev, curr)
+    if (radius < 1e-9) return vertices
+    val baseAngle = atan2(curr.y - prev.y, curr.x - prev.x)
+
+    fun angleAtTheta(theta: Double): Double {
+        val candidate = Vertex(prev.x + radius * cos(baseAngle + theta), prev.y + radius * sin(baseAngle + theta))
+        val trial = vertices.toMutableList().also { it[vertexIndex] = candidate }
+        return interiorAngleAtDeg(trial, vertexIndex)
+    }
+
+    var lo = Math.toRadians(-170.0)
+    var hi = Math.toRadians(170.0)
+    val loVal = angleAtTheta(lo)
+    val hiVal = angleAtTheta(hi)
+    val inRange = (newAngleDeg - loVal) * (newAngleDeg - hiVal) <= 0.0
+    if (!inRange) return vertices
+
+    repeat(60) {
+        val mid = (lo + hi) / 2.0
+        val midVal = angleAtTheta(mid)
+        if ((midVal < newAngleDeg) == (loVal < newAngleDeg)) lo = mid else hi = mid
+    }
+    val theta = (lo + hi) / 2.0
+    val newCurr = Vertex(prev.x + radius * cos(baseAngle + theta), prev.y + radius * sin(baseAngle + theta))
+    return vertices.toMutableList().also { it[vertexIndex] = newCurr }
 }

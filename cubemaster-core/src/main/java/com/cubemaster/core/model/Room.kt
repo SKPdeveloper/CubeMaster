@@ -19,8 +19,7 @@ data class Room(
 )
 
 sealed class RoomGeometry {
-    data class Rectangle(val widthMm: Int, val lengthMm: Int) : RoomGeometry()
-    data class Polygon(val edges: List<Edge>) : RoomGeometry()
+    data class Polygon(val vertices: List<com.cubemaster.core.geometry.Vertex>) : RoomGeometry()
 }
 
 data class Edge(val lengthMm: Int, val interiorAngleDeg: Double)
