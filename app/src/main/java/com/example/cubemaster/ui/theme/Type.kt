@@ -1,39 +1,54 @@
+@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+
 package com.example.cubemaster.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.example.cubemaster.R
 
-// Коли файли Manrope додані у res/font/, замінити FontFamily.SansSerif на ManropeFontFamily:
-// val ManropeFontFamily = FontFamily(
-//     Font(R.font.manrope_regular, FontWeight.Normal),
-//     Font(R.font.manrope_medium, FontWeight.Medium),
-//     Font(R.font.manrope_semibold, FontWeight.SemiBold),
-//     Font(R.font.manrope_bold, FontWeight.Bold),
-//     Font(R.font.manrope_extrabold, FontWeight.ExtraBold)
-// )
-val ManropeFontFamily = FontFamily.SansSerif
+// Manrope — variable font, використовується для основного тексту й даних
+// (добре читається дрібним кеглем, підтримує tabular figures для кошторису).
+val ManropeFontFamily = FontFamily(
+    Font(R.font.manrope_variable, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+    Font(R.font.manrope_variable, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(R.font.manrope_variable, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.manrope_variable, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.manrope_variable, FontWeight.ExtraBold, variationSettings = FontVariation.Settings(FontVariation.weight(800)))
+)
+
+// Unbounded — геометричний display-шрифт з вираженим характером, лише для великих
+// заголовків екранів і "hero"-чисел (підсумкова сума кошторису тощо). Дрібним кеглем
+// не використовувати — форми заважкі для суцільного тексту.
+val UnboundedFontFamily = FontFamily(
+    Font(R.font.unbounded_variable, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(R.font.unbounded_variable, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.unbounded_variable, FontWeight.Black, variationSettings = FontVariation.Settings(FontVariation.weight(900)))
+)
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = ManropeFontFamily,
+        fontFamily = UnboundedFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 36.sp
+        fontSize = 30.sp,
+        lineHeight = 38.sp,
+        letterSpacing = (-0.2).sp
     ),
     displayMedium = TextStyle(
-        fontFamily = ManropeFontFamily,
+        fontFamily = UnboundedFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
         lineHeight = 32.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = ManropeFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 28.sp
+        fontFamily = UnboundedFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 19.sp,
+        lineHeight = 26.sp
     ),
     titleMedium = TextStyle(
         fontFamily = ManropeFontFamily,
@@ -44,7 +59,7 @@ val Typography = Typography(
     ),
     titleSmall = TextStyle(
         fontFamily = ManropeFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp
     ),
@@ -87,9 +102,21 @@ val Typography = Typography(
     )
 )
 
+// Для hero-чисел поза стандартною шкалою Typography (напр. підсумкова сума кошторису)
+val HeroNumberStyle = TextStyle(
+    fontFamily = UnboundedFontFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 34.sp,
+    lineHeight = 40.sp,
+    letterSpacing = (-0.3).sp
+)
+
+// fontFeatureSettings = "tnum" вмикає моноширинні цифри в Manrope — без цього рядки
+// в колонках кошторису "гуляють" по горизонталі, бо в звичайному режимі "1" вужча за "8".
 val TabularNumberStyle = TextStyle(
-    fontFamily = FontFamily.Monospace,
+    fontFamily = ManropeFontFamily,
     fontWeight = FontWeight.Medium,
     fontSize = 14.sp,
-    lineHeight = 20.sp
+    lineHeight = 20.sp,
+    fontFeatureSettings = "tnum"
 )
