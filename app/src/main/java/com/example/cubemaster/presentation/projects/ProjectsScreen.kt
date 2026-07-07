@@ -3,6 +3,8 @@ package com.example.cubemaster.presentation.projects
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -10,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.model.Project
@@ -26,14 +29,24 @@ fun ProjectsScreen(
     onSummaryClick: (String) -> Unit,
     onCatalogClick: () -> Unit,
     onProfileClick: () -> Unit,
+    openCreateDialogOnStart: Boolean = false,
     viewModel: ProjectsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var showCreateDialog by remember { mutableStateOf(false) }
+    var showCreateDialog by remember { mutableStateOf(openCreateDialogOnStart) }
     var projectToEdit by remember { mutableStateOf<Project?>(null) }
     var projectToDelete by remember { mutableStateOf<Project?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.error) {
+        state.error?.let { err ->
+            snackbarHostState.showSnackbar(err)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CubeMasterTopBar(
                 title = "КубМайстер",
@@ -120,12 +133,6 @@ fun ProjectsScreen(
             },
             dismissButton = { TextButton(onClick = { projectToDelete = null }) { Text("Скасувати") } }
         )
-    }
-
-    state.error?.let { error ->
-        LaunchedEffect(error) {
-            viewModel.clearError()
-        }
     }
 }
 
@@ -223,9 +230,14 @@ private fun ProjectDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 OutlinedTextField(
                     value = titleValue,
                     onValueChange = { titleValue = it },

@@ -20,7 +20,7 @@ import javax.inject.Inject
 
 data class DemolitionUiState(
     val room: Room? = null,
-    val tasks: List<DemolitionTaskEntity> = emptyList(),
+    val tasks: List<DemolitionTask> = emptyList(),
     val totalDebrisM3: Double = 0.0,
     val totalLaborHours: Double = 0.0,
     val containersCount: Int = 0,
@@ -105,6 +105,8 @@ class DemolitionViewModel @Inject constructor(
         viewModelScope.launch { demolitionRepo.deleteTask(taskId) }
     }
 
+    fun clearError() = _state.update { it.copy(error = null) }
+
     private fun saveTask(kind: DemolitionKind, paramsJson: JsonObject, result: DemolitionResult) {
         val resultJson = buildJsonObject {
             put("debrisVolumeM3", result.debrisVolumeM3)
@@ -122,9 +124,14 @@ class DemolitionViewModel @Inject constructor(
     }
 
     private fun recalculate(tasks: List<DemolitionTask>) {
+        val totalDebrisM3 = tasks.sumOf { it.cachedResult?.debrisVolumeM3 ?: 0.0 }
+        val totalLaborHours = tasks.sumOf { it.cachedResult?.laborHours ?: 0.0 }
         _state.update { state ->
             state.copy(
-                tasks = emptyList() // simplified; full impl would parse cachedResultJson
+                tasks = tasks,
+                totalDebrisM3 = totalDebrisM3,
+                totalLaborHours = totalLaborHours,
+                containersCount = kotlin.math.ceil(totalDebrisM3 / 8.0).toInt()
             )
         }
     }

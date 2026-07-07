@@ -1,6 +1,7 @@
 package com.example.cubemaster.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.*
 import androidx.navigation.compose.*
 import com.example.cubemaster.presentation.catalog.CatalogScreen
@@ -42,13 +43,23 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation(startDestination: String = Screen.Projects.route) {
+fun AppNavigation(startDestination: String = Screen.Projects.route, pendingShortcutAction: String? = null) {
     val navController = rememberNavController()
+
+    // Ярлики застосунку ("Каталог"/"Профіль") відкривають екран одразу поверх стартового;
+    // "Новий проєкт" обробляється всередині ProjectsScreen (діалог створення).
+    LaunchedEffect(pendingShortcutAction) {
+        when (pendingShortcutAction) {
+            "catalog" -> navController.navigate(Screen.Catalog.route)
+            "profile" -> navController.navigate(Screen.Profile.route)
+        }
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
 
         composable(Screen.Projects.route) {
             ProjectsScreen(
+                openCreateDialogOnStart = pendingShortcutAction == "new_project",
                 onProjectClick = { projectId ->
                     navController.navigate(Screen.Rooms.createRoute(projectId))
                 },

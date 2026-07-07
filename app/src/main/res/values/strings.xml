@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">КубМайстер</string>
+
+    <string name="shortcut_new_project_short">Новий проєкт</string>
+    <string name="shortcut_new_project_long">Створити новий проєкт</string>
+    <string name="shortcut_catalog_short">Каталог</string>
+    <string name="shortcut_catalog_long">Каталог матеріалів</string>
+    <string name="shortcut_profile_short">Профіль</string>
+    <string name="shortcut_profile_long">Профіль компанії</string>
 </resources>

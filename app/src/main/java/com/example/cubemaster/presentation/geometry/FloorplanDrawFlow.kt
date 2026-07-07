@@ -1,6 +1,8 @@
 package com.example.cubemaster.presentation.geometry
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,6 +29,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import com.cubemaster.core.model.Edge
 import com.example.cubemaster.ui.components.createCameraOutputUri
 import com.example.cubemaster.ui.theme.CubeMasterColors
@@ -48,7 +53,7 @@ fun FloorplanDrawFlow(
     var calibratedScale by remember { mutableStateOf<Float?>(null) }
     var showPickMenu by remember { mutableStateOf(false) }
     var isDecoding by remember { mutableStateOf(false) }
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     fun startDecoding(uri: Uri, pdf: Boolean) {
         pickedUri = uri
@@ -63,6 +68,14 @@ fun FloorplanDrawFlow(
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingCameraUri?.let { startDecoding(it, pdf = false) }
+    }
+    fun launchCamera() {
+        val uri = createCameraOutputUri(context)
+        pendingCameraUri = uri
+        cameraLauncher.launch(uri)
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchCamera()
     }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let { startDecoding(it, pdf = false) }
@@ -111,9 +124,11 @@ fun FloorplanDrawFlow(
                 Column {
                     TextButton(onClick = {
                         showPickMenu = false
-                        val uri = createCameraOutputUri(context)
-                        pendingCameraUri = uri
-                        cameraLauncher.launch(uri)
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            launchCamera()
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.PhotoCamera, null); Spacer(Modifier.width(8.dp)); Text("Зняти фото")
                     }
@@ -190,6 +205,8 @@ private fun FloorplanCalibrationCanvas(
         var lengthMm by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showLengthDialog = false },
+            modifier = Modifier.imePadding(),
+            properties = DialogProperties(decorFitsSystemWindows = false),
             title = { Text("Реальна довжина лінії") },
             text = {
                 OutlinedTextField(

@@ -1,6 +1,8 @@
 package com.example.cubemaster.ui.components
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -15,12 +17,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.cubemaster.core.model.Attachment
@@ -43,10 +48,18 @@ fun AttachmentsSection(
     var showNoteDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingCameraUri?.let(onAddPhoto)
+    }
+    fun launchCamera() {
+        val uri = createCameraOutputUri(context)
+        pendingCameraUri = uri
+        cameraLauncher.launch(uri)
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchCamera()
     }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(onAddPhoto)
@@ -102,9 +115,11 @@ fun AttachmentsSection(
                 Column {
                     TextButton(onClick = {
                         showAddMenu = false
-                        val uri = createCameraOutputUri(context)
-                        pendingCameraUri = uri
-                        cameraLauncher.launch(uri)
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            launchCamera()
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.PhotoCamera, null); Spacer(Modifier.width(8.dp)); Text("Зняти фото")
                     }
@@ -136,6 +151,8 @@ fun AttachmentsSection(
         var text by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showNoteDialog = false },
+            modifier = Modifier.imePadding(),
+            properties = DialogProperties(decorFitsSystemWindows = false),
             title = { Text("Текстова примітка") },
             text = {
                 OutlinedTextField(
@@ -208,8 +225,10 @@ private fun AddAttachmentButton(onClick: () -> Unit) {
     }
 }
 
+// context.filesDir, а не cacheDir — кеш ОС може очистити будь-якої миті,
+// в т.ч. поки відкрита зовнішня камера, і файл зникне до моменту завантаження.
 internal fun createCameraOutputUri(context: Context): Uri {
-    val dir = File(context.cacheDir, "attachments").apply { mkdirs() }
+    val dir = File(context.filesDir, "attachments").apply { mkdirs() }
     val file = File(dir, "photo_${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }

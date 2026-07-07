@@ -39,7 +39,7 @@ fun CatalogScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize().imePadding()) {
 
             // Пошук
             OutlinedTextField(

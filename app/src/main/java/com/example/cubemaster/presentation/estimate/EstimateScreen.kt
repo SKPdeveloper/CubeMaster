@@ -7,6 +7,8 @@ import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.model.MeasurementUnit
@@ -32,6 +35,7 @@ fun EstimateScreen(
     val context = LocalContext.current
     var showAddMaterial by remember { mutableStateOf(false) }
     var showAddLabor by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.exportUrl) {
         state.exportUrl?.let { url ->
@@ -40,7 +44,15 @@ fun EstimateScreen(
         }
     }
 
+    LaunchedEffect(state.error) {
+        state.error?.let { err ->
+            snackbarHostState.showSnackbar(err)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CubeMasterTopBar(
                 title = "Кошторис",
@@ -60,7 +72,7 @@ fun EstimateScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize().imePadding()) {
 
             // Поле націнки
             Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
@@ -148,11 +160,6 @@ fun EstimateScreen(
                 OutlinedButton(onClick = { showAddLabor = true }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Engineering, null); Spacer(Modifier.width(4.dp)); Text("Робота")
                 }
-            }
-
-            state.error?.let { err ->
-                WarningCard(err, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                LaunchedEffect(err) { viewModel.clearError() }
             }
         }
     }
@@ -249,9 +256,14 @@ private fun AddLineDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },

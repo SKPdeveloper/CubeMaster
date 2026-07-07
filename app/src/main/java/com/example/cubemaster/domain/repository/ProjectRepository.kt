@@ -7,7 +7,7 @@ import com.example.cubemaster.data.remote.FirestoreRepository
 import com.example.cubemaster.data.remote.StorageRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -158,7 +158,10 @@ class SurfaceRepository @Inject constructor(
 }
 
 @Singleton
-class DemolitionRepository @Inject constructor(private val db: AppDatabase) {
+class DemolitionRepository @Inject constructor(
+    private val db: AppDatabase,
+    private val json: Json
+) {
 
     fun observeTasks(roomId: String): Flow<List<DemolitionTask>> =
         db.demolitionTaskDao().observeByRoom(roomId).map { list ->
@@ -167,10 +170,21 @@ class DemolitionRepository @Inject constructor(private val db: AppDatabase) {
                     id = e.id,
                     roomId = e.roomId,
                     kind = DemolitionKind.valueOf(e.kind),
-                    params = emptyMap()
+                    params = emptyMap(),
+                    cachedResult = e.cachedResultJson?.let { parseCachedResult(it) }
                 )
             }
         }
+
+    private fun parseCachedResult(resultJson: String): DemolitionResult {
+        val obj = json.parseToJsonElement(resultJson).jsonObject
+        return DemolitionResult(
+            debrisVolumeM3 = obj.getValue("debrisVolumeM3").jsonPrimitive.double,
+            debrisMassKg = obj.getValue("debrisMassKg").jsonPrimitive.double,
+            laborHours = obj.getValue("laborHours").jsonPrimitive.double,
+            materialLines = emptyList()
+        )
+    }
 
     suspend fun upsertTask(task: com.example.cubemaster.data.local.entity.DemolitionTaskEntity) {
         db.demolitionTaskDao().upsert(task)

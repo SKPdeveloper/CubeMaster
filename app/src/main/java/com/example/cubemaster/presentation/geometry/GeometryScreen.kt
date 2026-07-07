@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.geometry.Vertex
@@ -37,8 +38,17 @@ fun GeometryScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showOpeningDialog by remember { mutableStateOf<Int?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.error) {
+        state.error?.let { err ->
+            snackbarHostState.showSnackbar(err)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CubeMasterTopBar(
                 title = state.room?.name ?: "Геометрія",
@@ -57,6 +67,7 @@ fun GeometryScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -87,10 +98,6 @@ fun GeometryScreen(
 
             // Попередження нев'язки
             state.closureWarning?.let { WarningCard(it) }
-            state.error?.let { msg ->
-                LaunchedEffect(msg) { viewModel.clearError() }
-                WarningCard(msg)
-            }
         }
     }
 
@@ -438,9 +445,14 @@ private fun AddOpeningDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text("Проріз на стіні ${edgeIndex + 1}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OpeningKind.entries.forEach { k ->
                         FilterChip(

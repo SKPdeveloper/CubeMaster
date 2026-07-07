@@ -3,7 +3,9 @@ package com.example.cubemaster.presentation.documents
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,8 +22,18 @@ fun ProjectDocumentsScreen(
     viewModel: ProjectDocumentsViewModel = hiltViewModel()
 ) {
     val documents by viewModel.documents.collectAsStateWithLifecycle(initialValue = emptyList())
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(error) {
+        error?.let { err ->
+            snackbarHostState.showSnackbar(err)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { CubeMasterTopBar(title = "Документи проєкту", onBack = onBack) }
     ) { padding ->
         Column(

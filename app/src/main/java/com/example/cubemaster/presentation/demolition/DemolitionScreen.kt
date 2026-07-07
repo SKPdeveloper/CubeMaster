@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.model.*
@@ -25,8 +26,17 @@ fun DemolitionScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf<DemolitionKind?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.error) {
+        state.error?.let { err ->
+            snackbarHostState.showSnackbar(err)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CubeMasterTopBar(
                 title = "Демонтаж — ${state.room?.name ?: ""}",
@@ -38,6 +48,7 @@ fun DemolitionScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -140,9 +151,14 @@ private fun WallRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewMo
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text("Знесення стін") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 NumberInputField(length, { length = it }, "Довжина", "м")
                 NumberInputField(height, { height = it }, "Висота", "м")
                 NumberInputField(thickness, { thickness = it }, "Товщина", "мм")
@@ -191,9 +207,14 @@ private fun PlasterRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionVie
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text("Демонтаж штукатурки") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 NumberInputField(area, { area = it }, "Площа", "м²")
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Checkbox(isGypsum, { isGypsum = it })
@@ -221,9 +242,14 @@ private fun ScreedRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionView
     var thickness by remember { mutableStateOf("50") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text("Демонтаж стяжки") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 NumberInputField(area, { area = it }, "Площа", "м²")
                 NumberInputField(thickness, { thickness = it }, "Товщина стяжки", "мм")
             }
@@ -247,9 +273,14 @@ private fun PaintRemovalDialog(onDismiss: () -> Unit, viewModel: DemolitionViewM
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text("Видалення фарби") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 NumberInputField(area, { area = it }, "Площа", "м²")
                 Text("Тип фарби:", style = MaterialTheme.typography.labelMedium)
                 PaintType.entries.forEach { t ->
@@ -289,8 +320,12 @@ private fun SimpleAreaDialog(title: String, onDismiss: () -> Unit, onConfirm: (D
     var area by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        properties = DialogProperties(decorFitsSystemWindows = false),
         title = { Text(title) },
-        text = { NumberInputField(area, { area = it }, "Площа", "м²") },
+        text = {
+            NumberInputField(area, { area = it }, "Площа", "м²")
+        },
         confirmButton = {
             TextButton(onClick = { onConfirm(area.toDoubleOrNull() ?: 0.0) }) { Text("Додати") }
         },

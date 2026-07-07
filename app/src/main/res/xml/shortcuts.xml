@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_project"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_new_project"
+        android:shortcutShortLabel="@string/shortcut_new_project_short"
+        android:shortcutLongLabel="@string/shortcut_new_project_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.cubemaster"
+            android:targetClass="com.example.cubemaster.MainActivity">
+            <extra android:name="shortcut_action" android:value="new_project" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="catalog"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_catalog"
+        android:shortcutShortLabel="@string/shortcut_catalog_short"
+        android:shortcutLongLabel="@string/shortcut_catalog_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.cubemaster"
+            android:targetClass="com.example.cubemaster.MainActivity">
+            <extra android:name="shortcut_action" android:value="catalog" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="profile"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_profile"
+        android:shortcutShortLabel="@string/shortcut_profile_short"
+        android:shortcutLongLabel="@string/shortcut_profile_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.cubemaster"
+            android:targetClass="com.example.cubemaster.MainActivity">
+            <extra android:name="shortcut_action" android:value="profile" />
+        </intent>
+    </shortcut>
+</shortcuts>

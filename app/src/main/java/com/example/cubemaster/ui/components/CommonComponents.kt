@@ -155,11 +155,18 @@ fun EmptyState(text: String, modifier: Modifier = Modifier) {
     }
 }
 
+private fun groupThousands(digits: String): String =
+    digits.reversed().chunked(3).joinToString(" ").reversed()
+
+// Форматування завжди через Locale.US (крапка як десятковий роздільник у проміжному рядку),
+// щоб не залежати від ICU-даних конкретного пристрою для "uk_UA" — потім вручну збираємо
+// українське представлення (кома — десятковий роздільник, пробіл — розділювач тисяч).
 fun Double.toUaString(): String {
-    return String.format(java.util.Locale("uk", "UA"), "%,.2f", this)
-        .replace(",", " ").replace(".", ",")
+    val (intPart, decPart) = String.format(java.util.Locale.US, "%.2f", this).split(".")
+    return "${groupThousands(intPart)},$decPart"
 }
 
-fun Double.toUaStringRound(): String =
-    String.format(java.util.Locale("uk", "UA"), "%,.0f", this)
-        .replace(",", " ")
+fun Double.toUaStringRound(): String {
+    val intPart = String.format(java.util.Locale.US, "%.0f", this)
+    return groupThousands(intPart)
+}

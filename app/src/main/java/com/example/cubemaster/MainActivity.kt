@@ -1,5 +1,6 @@
 package com.example.cubemaster
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,9 +29,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var auth: AuthRepository
 
+    private var pendingShortcutAction by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        pendingShortcutAction = consumeShortcutAction(intent)
         setContent {
             CubeMasterTheme(darkTheme = isSystemInDarkTheme()) {
                 var isReady by remember { mutableStateOf(false) }
@@ -39,7 +43,7 @@ class MainActivity : ComponentActivity() {
                     isReady = true
                 }
                 if (isReady) {
-                    AppNavigation()
+                    AppNavigation(pendingShortcutAction = pendingShortcutAction)
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -47,5 +51,23 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingShortcutAction = consumeShortcutAction(intent)
+    }
+
+    // Ярлик застосунку (shortcuts.xml) передає дію одноразово: прибираємо extra з Intent,
+    // щоб пересворення Activity (напр. поворот екрана) не повторювало навігацію.
+    private fun consumeShortcutAction(intent: Intent?): String? {
+        val action = intent?.getStringExtra(EXTRA_SHORTCUT_ACTION)
+        intent?.removeExtra(EXTRA_SHORTCUT_ACTION)
+        return action
+    }
+
+    companion object {
+        private const val EXTRA_SHORTCUT_ACTION = "shortcut_action"
     }
 }
