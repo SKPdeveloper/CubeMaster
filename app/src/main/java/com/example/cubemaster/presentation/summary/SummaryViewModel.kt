@@ -148,10 +148,10 @@ class SummaryViewModel @Inject constructor(
             LayerType.PlasterGypsumManual, LayerType.PlasterGypsumMachine,
             LayerType.PlasterCementSandManual, LayerType.PlasterCementSandMachine, LayerType.WallPutty ->
                 if (norm != null) calculatePlaster(areaM2, thickness, norm, concaveCorners) else LayerResult(0.0, 0)
-            LayerType.PrimerDeep, LayerType.PrimerContact -> calculatePrimer(areaM2)
+            LayerType.PrimerDeep, LayerType.PrimerContact -> calculatePrimer(areaM2, layer.isPorous)
             LayerType.WaterproofingCoating -> calculateWaterproofing(areaM2, roomPerimeterM)
             LayerType.FlooringLaminate, LayerType.FlooringParquet,
-            LayerType.FlooringTile, LayerType.FlooringLinoleum -> calculateFlooring(areaM2, layer.layerType)
+            LayerType.FlooringTile, LayerType.FlooringLinoleum -> calculateFlooring(areaM2, layer.layerType, layer.isDiagonal)
             LayerType.WallPaint -> calculatePaint(areaM2)
             LayerType.WallDrywall -> calculateDrywall(areaM2)
             LayerType.WallTile -> calculateWallTile(areaM2)

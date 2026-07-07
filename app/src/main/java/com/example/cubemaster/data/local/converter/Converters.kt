@@ -171,7 +171,9 @@ object EntityMapper {
                     position = obj["position"]!!.jsonPrimitive.int,
                     layerType = LayerType.valueOf(obj["layerType"]!!.jsonPrimitive.content),
                     thicknessMm = obj["thicknessMm"]?.jsonPrimitive?.doubleOrNull,
-                    materialSku = obj["materialSku"]?.jsonPrimitive?.contentOrNull
+                    materialSku = obj["materialSku"]?.jsonPrimitive?.contentOrNull,
+                    isPorous = obj["isPorous"]?.jsonPrimitive?.booleanOrNull ?: false,
+                    isDiagonal = obj["isDiagonal"]?.jsonPrimitive?.booleanOrNull ?: false
                 )
             }
         } catch (_: Exception) { emptyList() }
@@ -185,6 +187,8 @@ object EntityMapper {
                 put("layerType", l.layerType.name)
                 l.thicknessMm?.let { put("thicknessMm", it) }
                 l.materialSku?.let { put("materialSku", it) }
+                put("isPorous", l.isPorous)
+                put("isDiagonal", l.isDiagonal)
             }
         })
         return arr.toString()

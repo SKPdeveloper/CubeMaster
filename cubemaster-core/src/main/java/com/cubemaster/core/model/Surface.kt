@@ -16,7 +16,10 @@ data class Layer(
     val layerType: LayerType,
     val thicknessMm: Double?,
     val materialSku: String?,
-    val params: Map<String, Any> = emptyMap()
+    // Пориста основа — коефіцієнт витрати ×1.5 для ґрунтовки (PrimerDeep/PrimerContact).
+    val isPorous: Boolean = false,
+    // Діагональна укладка — підвищений відсоток запасу для фінішних покриттів підлоги.
+    val isDiagonal: Boolean = false
 )
 
 enum class LayerType {

@@ -112,6 +112,18 @@ class LayersViewModel @Inject constructor(
         saveLayers(newLayers)
     }
 
+    fun setLayerPorous(layerId: String, isPorous: Boolean) {
+        val surface = _state.value.surface ?: return
+        val newLayers = surface.layers.map { if (it.id == layerId) it.copy(isPorous = isPorous) else it }
+        saveLayers(newLayers)
+    }
+
+    fun setLayerDiagonal(layerId: String, isDiagonal: Boolean) {
+        val surface = _state.value.surface ?: return
+        val newLayers = surface.layers.map { if (it.id == layerId) it.copy(isDiagonal = isDiagonal) else it }
+        saveLayers(newLayers)
+    }
+
     fun moveLayerUp(layerId: String) {
         val surface = _state.value.surface ?: return
         val index = surface.layers.indexOfFirst { it.id == layerId }
@@ -178,10 +190,10 @@ class LayersViewModel @Inject constructor(
                 if (norm != null) calculatePlaster(areaM2, thickness, norm, concaveCorners) else LayerResult(0.0, 0)
             LayerType.WallPutty ->
                 if (norm != null) calculatePlaster(areaM2, thickness, norm, concaveCorners) else LayerResult(0.0, 0)
-            LayerType.PrimerDeep, LayerType.PrimerContact -> calculatePrimer(areaM2)
+            LayerType.PrimerDeep, LayerType.PrimerContact -> calculatePrimer(areaM2, layer.isPorous)
             LayerType.WaterproofingCoating -> calculateWaterproofing(areaM2, roomPerimeterM)
             LayerType.FlooringLaminate, LayerType.FlooringParquet,
-            LayerType.FlooringTile, LayerType.FlooringLinoleum -> calculateFlooring(areaM2, layer.layerType)
+            LayerType.FlooringTile, LayerType.FlooringLinoleum -> calculateFlooring(areaM2, layer.layerType, layer.isDiagonal)
             LayerType.WallPaint -> calculatePaint(areaM2)
             LayerType.WallDrywall -> calculateDrywall(areaM2)
             LayerType.WallTile -> calculateWallTile(areaM2)

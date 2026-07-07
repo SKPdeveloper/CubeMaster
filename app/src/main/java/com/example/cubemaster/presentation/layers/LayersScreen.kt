@@ -108,7 +108,9 @@ fun LayersScreen(
                             onMoveUp = { viewModel.moveLayerUp(item.layer.id) },
                             onMoveDown = { viewModel.moveLayerDown(item.layer.id) },
                             onDelete = { viewModel.removeLayer(item.layer.id) },
-                            onEditThickness = { layerToEditThickness = item.layer.id to (item.layer.thicknessMm?.toString() ?: "") }
+                            onEditThickness = { layerToEditThickness = item.layer.id to (item.layer.thicknessMm?.toString() ?: "") },
+                            onTogglePorous = { viewModel.setLayerPorous(item.layer.id, it) },
+                            onToggleDiagonal = { viewModel.setLayerDiagonal(item.layer.id, it) }
                         )
                     }
                 }
@@ -169,13 +171,18 @@ fun LayersScreen(
     }
 }
 
+private val POROUS_APPLICABLE_TYPES = setOf(LayerType.PrimerDeep, LayerType.PrimerContact)
+private val DIAGONAL_APPLICABLE_TYPES = setOf(LayerType.FlooringLaminate, LayerType.FlooringParquet, LayerType.FlooringTile)
+
 @Composable
 private fun LayerCard(
     item: LayerCalculatedItem,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onDelete: () -> Unit,
-    onEditThickness: () -> Unit
+    onEditThickness: () -> Unit,
+    onTogglePorous: (Boolean) -> Unit,
+    onToggleDiagonal: (Boolean) -> Unit
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -196,6 +203,18 @@ private fun LayerCard(
                     item.normativeRef?.let { ref ->
                         Text(ref, style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary)
+                    }
+                    if (item.layer.layerType in POROUS_APPLICABLE_TYPES) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = item.layer.isPorous, onCheckedChange = onTogglePorous)
+                            Text("Пориста основа (×1,5 витрати)", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    if (item.layer.layerType in DIAGONAL_APPLICABLE_TYPES) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = item.layer.isDiagonal, onCheckedChange = onToggleDiagonal)
+                            Text("Діагональна укладка (більший запас)", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
                 Row {

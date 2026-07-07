@@ -25,8 +25,7 @@ object LayerPresets {
             surfaceKind = SurfaceKind.Floor,
             layers = listOf(
                 Layer(UUID.randomUUID().toString(), 1, LayerType.WaterproofingCoating, null, "WATERPROOF_COATING"),
-                Layer(UUID.randomUUID().toString(), 2, LayerType.ScreedCpsManual, 60.0, "SCREED_CPS_MANUAL",
-                    mapOf("hasUnderfloorHeating" to true, "minAbovePipeMm" to 30)),
+                Layer(UUID.randomUUID().toString(), 2, LayerType.ScreedCpsManual, 60.0, "SCREED_CPS_MANUAL"),
                 Layer(UUID.randomUUID().toString(), 3, LayerType.PrimerDeep, null, "PRIMER_DEEP"),
                 Layer(UUID.randomUUID().toString(), 4, LayerType.FlooringTile, null, "TILE_ADHESIVE")
             )
