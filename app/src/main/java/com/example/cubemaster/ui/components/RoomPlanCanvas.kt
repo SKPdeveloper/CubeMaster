@@ -27,7 +27,6 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cubemaster.core.geometry.ClosureStatus
 import com.cubemaster.core.geometry.Vertex
 import com.cubemaster.core.geometry.closestPointOnSegment
 import com.cubemaster.core.geometry.distance
@@ -35,6 +34,8 @@ import com.cubemaster.core.geometry.projectionRatio
 import com.cubemaster.core.model.Opening
 import com.cubemaster.core.model.OpeningKind
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -47,7 +48,7 @@ data class PlacedRoom(
     val label: String,
     val vertices: List<Vertex>,
     val openings: List<Opening> = emptyList(),
-    val status: ClosureStatus = ClosureStatus.Ok
+    val hasSelfIntersection: Boolean = false
 )
 
 enum class PlanInteractionMode { SingleRoomEdit, ObjectOverview }
@@ -141,7 +142,10 @@ fun RoomPlanCanvas(
     onOpeningTap: ((openingId: String) -> Unit)? = null,
     onRoomTap: ((roomId: String) -> Unit)? = null,
     onRoomDrag: ((roomId: String, deltaXM: Double, deltaYM: Double) -> Unit)? = null,
-    onRoomDragEnd: ((roomId: String) -> Unit)? = null
+    onRoomDragEnd: ((roomId: String) -> Unit)? = null,
+    onVertexDrag: ((roomId: String, index: Int, newVertex: Vertex) -> Unit)? = null,
+    onWallLongPress: ((roomId: String, wallIndex: Int, atPoint: Vertex) -> Unit)? = null,
+    onVertexLongPress: ((roomId: String, index: Int) -> Unit)? = null
 ) {
     val bgColor = MaterialTheme.colorScheme.surfaceVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
@@ -167,49 +171,99 @@ fun RoomPlanCanvas(
                     val gestureRooms = latestRooms
                     val transform = computeTransform(gestureRooms, Size(size.width.toFloat(), size.height.toFloat()), scale, panOffset)
 
+                    var targetVertex: Pair<Int, PlacedRoom>? = null
+
+                    if (mode == PlanInteractionMode.SingleRoomEdit && gestureRooms.isNotEmpty()) {
+                        val room = gestureRooms.first()
+                        var bestVertexDist = Float.MAX_VALUE
+                        var bestVertexIndex = -1
+                        room.vertices.forEachIndexed { i, v ->
+                            val d = (transform.toCanvas(v) - down.position).getDistance()
+                            if (d < bestVertexDist) { bestVertexDist = d; bestVertexIndex = i }
+                        }
+                        if (bestVertexDist <= wallHitThresholdPx && bestVertexIndex >= 0) {
+                            targetVertex = bestVertexIndex to room
+                        }
+                    }
+
                     var targetOpening: Opening? = null
                     var targetRoom: PlacedRoom? = null
                     var targetWall: Pair<Int, PlacedRoom>? = null
 
-                    if (mode == PlanInteractionMode.SingleRoomEdit && gestureRooms.isNotEmpty()) {
-                        val room = gestureRooms.first()
-                        val n = room.vertices.size
-                        var bestDist = Float.MAX_VALUE
-                        room.openings.forEach { o ->
-                            if (o.wallEdgeIndex !in 0 until n) return@forEach
-                            val a = room.vertices[o.wallEdgeIndex]
-                            val b = room.vertices[(o.wallEdgeIndex + 1) % n]
-                            val wallLenMm = distance(a, b) * 1000
-                            if (wallLenMm <= 0) return@forEach
-                            val tMid = ((o.offsetMm + o.widthMm / 2.0) / wallLenMm).coerceIn(0.0, 1.0)
-                            val mid = Vertex(a.x + (b.x - a.x) * tMid, a.y + (b.y - a.y) * tMid)
-                            val d = (transform.toCanvas(mid) - down.position).getDistance()
-                            if (d < bestDist) { bestDist = d; targetOpening = o }
-                        }
-                        if (bestDist > openingHitRadiusPx) targetOpening = null
+                    if (targetVertex == null) {
+                        if (mode == PlanInteractionMode.SingleRoomEdit && gestureRooms.isNotEmpty()) {
+                            val room = gestureRooms.first()
+                            val n = room.vertices.size
+                            var bestDist = Float.MAX_VALUE
+                            room.openings.forEach { o ->
+                                if (o.wallEdgeIndex !in 0 until n) return@forEach
+                                val a = room.vertices[o.wallEdgeIndex]
+                                val b = room.vertices[(o.wallEdgeIndex + 1) % n]
+                                val wallLenMm = distance(a, b) * 1000
+                                if (wallLenMm <= 0) return@forEach
+                                val tMid = ((o.offsetMm + o.widthMm / 2.0) / wallLenMm).coerceIn(0.0, 1.0)
+                                val mid = Vertex(a.x + (b.x - a.x) * tMid, a.y + (b.y - a.y) * tMid)
+                                val d = (transform.toCanvas(mid) - down.position).getDistance()
+                                if (d < bestDist) { bestDist = d; targetOpening = o }
+                            }
+                            if (bestDist > openingHitRadiusPx) targetOpening = null
 
-                        if (targetOpening == null && n >= 3) {
-                            var bestWallDist = Float.MAX_VALUE
-                            var bestWallIndex = -1
-                            val scenePoint = transform.toScene(down.position)
-                            for (i in 0 until n) {
-                                val a = room.vertices[i]
-                                val b = room.vertices[(i + 1) % n]
-                                val closest = closestPointOnSegment(a, b, scenePoint)
-                                val d = (transform.toCanvas(closest) - down.position).getDistance()
-                                if (d < bestWallDist) { bestWallDist = d; bestWallIndex = i }
+                            if (targetOpening == null && n >= 3) {
+                                var bestWallDist = Float.MAX_VALUE
+                                var bestWallIndex = -1
+                                val scenePoint = transform.toScene(down.position)
+                                for (i in 0 until n) {
+                                    val a = room.vertices[i]
+                                    val b = room.vertices[(i + 1) % n]
+                                    val closest = closestPointOnSegment(a, b, scenePoint)
+                                    val d = (transform.toCanvas(closest) - down.position).getDistance()
+                                    if (d < bestWallDist) { bestWallDist = d; bestWallIndex = i }
+                                }
+                                if (bestWallDist <= wallHitThresholdPx && bestWallIndex >= 0) {
+                                    targetWall = bestWallIndex to room
+                                }
                             }
-                            if (bestWallDist <= wallHitThresholdPx && bestWallIndex >= 0) {
-                                targetWall = bestWallIndex to room
+                        } else if (mode == PlanInteractionMode.ObjectOverview) {
+                            targetRoom = gestureRooms.firstOrNull { room ->
+                                room.vertices.size >= 3 && pointInPolygon(room.vertices.map { transform.toCanvas(it) }, down.position)
                             }
-                        }
-                    } else if (mode == PlanInteractionMode.ObjectOverview) {
-                        targetRoom = gestureRooms.firstOrNull { room ->
-                            room.vertices.size >= 3 && pointInPolygon(room.vertices.map { transform.toCanvas(it) }, down.position)
                         }
                     }
 
                     when {
+                        targetVertex != null -> {
+                            down.consume()
+                            val (vertexIndex, room) = targetVertex!!
+                            var totalDrag = Offset.Zero
+                            var longPressFired = false
+                            // GlobalScope виправданий тут: job явно скасовується (cancel())
+                            // у кожній гілці виходу з жесту — витоку немає, а awaitEachGesture /
+                            // pointerInput не надає власного CoroutineScope для дочірніх задач
+                            // із затримкою.
+                            val longPressJob = kotlinx.coroutines.GlobalScope.launch {
+                                delay(500)
+                                if (totalDrag.getDistance() < tapSlopPx) {
+                                    longPressFired = true
+                                    onVertexLongPress?.invoke(room.roomId, vertexIndex)
+                                }
+                            }
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) {
+                                    change.consume()
+                                    longPressJob.cancel()
+                                    break
+                                }
+                                totalDrag += change.positionChange()
+                                change.consume()
+                                if (totalDrag.getDistance() >= tapSlopPx && !longPressFired) {
+                                    longPressJob.cancel()
+                                    val scenePoint = transform.toScene(change.position)
+                                    onVertexDrag?.invoke(room.roomId, vertexIndex, scenePoint)
+                                }
+                            }
+                        }
                         targetOpening != null -> {
                             down.consume()
                             val opening = targetOpening!!
@@ -239,26 +293,46 @@ fun RoomPlanCanvas(
                         targetWall != null -> {
                             val (wallIndex, room) = targetWall!!
                             var totalDrag = Offset.Zero
+                            var longPressFired = false
+                            // GlobalScope виправданий тут так само, як і для вершини вище:
+                            // job явно скасовується в кожній гілці виходу з жесту.
+                            val longPressJob = kotlinx.coroutines.GlobalScope.launch {
+                                delay(500)
+                                if (totalDrag.getDistance() < tapSlopPx) {
+                                    longPressFired = true
+                                    val n = room.vertices.size
+                                    val a = room.vertices[wallIndex]
+                                    val b = room.vertices[(wallIndex + 1) % n]
+                                    val scenePoint = transform.toScene(down.position)
+                                    val t = projectionRatio(a, b, scenePoint)
+                                    val atPoint = Vertex(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+                                    onWallLongPress?.invoke(room.roomId, wallIndex, atPoint)
+                                }
+                            }
                             while (true) {
                                 val event = awaitPointerEvent()
                                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                                 if (!change.pressed) {
-                                    if (totalDrag.getDistance() < tapSlopPx) {
-                                        val n = room.vertices.size
-                                        val a = room.vertices[wallIndex]
-                                        val b = room.vertices[(wallIndex + 1) % n]
-                                        val wallLenMm = distance(a, b) * 1000
-                                        val scenePoint = transform.toScene(down.position)
-                                        val t = projectionRatio(a, b, scenePoint)
-                                        onWallTap?.invoke(room.roomId, wallIndex, (t * wallLenMm).roundToInt())
-                                    } else {
-                                        panOffset += totalDrag
+                                    longPressJob.cancel()
+                                    if (!longPressFired) {
+                                        if (totalDrag.getDistance() < tapSlopPx) {
+                                            val n = room.vertices.size
+                                            val a = room.vertices[wallIndex]
+                                            val b = room.vertices[(wallIndex + 1) % n]
+                                            val wallLenMm = distance(a, b) * 1000
+                                            val scenePoint = transform.toScene(down.position)
+                                            val t = projectionRatio(a, b, scenePoint)
+                                            onWallTap?.invoke(room.roomId, wallIndex, (t * wallLenMm).roundToInt())
+                                        } else {
+                                            panOffset += totalDrag
+                                        }
                                     }
                                     break
                                 }
                                 val delta = change.positionChange()
                                 totalDrag += delta
                                 if (totalDrag.getDistance() > tapSlopPx) {
+                                    longPressJob.cancel()
                                     change.consume()
                                     panOffset += delta
                                 }
@@ -324,11 +398,8 @@ fun RoomPlanCanvas(
         rooms.forEach { room ->
             if (room.vertices.size < 3) return@forEach
             val strokeColor = when (mode) {
-                PlanInteractionMode.SingleRoomEdit -> when (room.status) {
-                    ClosureStatus.Ok -> CubeMasterColors.success
-                    ClosureStatus.WarningAutoFixed -> CubeMasterColors.warning
-                    ClosureStatus.Error -> CubeMasterColors.error
-                }
+                PlanInteractionMode.SingleRoomEdit ->
+                    if (room.hasSelfIntersection) CubeMasterColors.error else CubeMasterColors.success
                 PlanInteractionMode.ObjectOverview -> CubeMasterColors.gold
             }
             val fillColor = CubeMasterColors.gold
