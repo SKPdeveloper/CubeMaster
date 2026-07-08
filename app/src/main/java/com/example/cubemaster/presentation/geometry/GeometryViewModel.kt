@@ -17,29 +17,24 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-data class EdgeInput(val lengthMm: String = "", val angleDeg: String = "90")
-
 data class GeometryUiState(
     val room: Room? = null,
     val openings: List<Opening> = emptyList(),
     val surfaces: List<Surface> = emptyList(),
-    val isRectangle: Boolean = true,
-    val widthMm: String = "4000",
-    val lengthMm: String = "3000",
+    val vertices: List<Vertex> = emptyList(),
     val heightMm: String = "2700",
     val heightMode: HeightMode = HeightMode.Uniform,
-    val cornerHeightsMm: List<String> = List(4) { "2700" },
-    val edges: List<EdgeInput> = List(4) { EdgeInput("3000", "90") },
-    val polygonResult: PolygonResult? = null,
-    val polygonVertices: List<Vertex> = emptyList(),
     val floorAreaM2: Double = 0.0,
     val perimeter: Double = 0.0,
-    val closureWarning: String? = null,
+    val selfIntersects: Boolean = false,
     val openingWarning: String? = null,
     val hasUnsavedChanges: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null
-)
+) {
+    // Похідна таблиця чисел (довжина+кут) для UI — рахується з vertices щоразу.
+    val edges: List<Edge> get() = if (vertices.size >= 3) verticesToEdges(vertices) else emptyList()
+}
 
 @HiltViewModel
 class GeometryViewModel @Inject constructor(
@@ -58,20 +53,12 @@ class GeometryViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             roomRepo.observeRoom(roomId).filterNotNull().first().let { room ->
-                val isRect = room.geometry is RoomGeometry.Rectangle
                 _state.update { s ->
                     s.copy(
                         room = room,
-                        isRectangle = isRect,
-                        widthMm = if (isRect) (room.geometry as RoomGeometry.Rectangle).widthMm.toString() else s.widthMm,
-                        lengthMm = if (isRect) (room.geometry as RoomGeometry.Rectangle).lengthMm.toString() else s.lengthMm,
+                        vertices = (room.geometry as RoomGeometry.Polygon).vertices,
                         heightMm = room.heightMm?.toString() ?: s.heightMm,
-                        heightMode = room.heightMode,
-                        edges = if (!isRect) {
-                            (room.geometry as RoomGeometry.Polygon).edges.map {
-                                EdgeInput(it.lengthMm.toString(), it.interiorAngleDeg.toString())
-                            }
-                        } else s.edges
+                        heightMode = room.heightMode
                     )
                 }
                 recalculate()
@@ -90,54 +77,84 @@ class GeometryViewModel @Inject constructor(
         }
     }
 
-    fun setRectangleMode(isRect: Boolean) {
-        _state.update { it.copy(isRectangle = isRect, hasUnsavedChanges = true) }
-        recalculate()
-    }
-
-    fun setWidth(v: String) { _state.update { it.copy(widthMm = v, hasUnsavedChanges = true) }; recalculate() }
-    fun setLength(v: String) { _state.update { it.copy(lengthMm = v, hasUnsavedChanges = true) }; recalculate() }
     fun setHeight(v: String) { _state.update { it.copy(heightMm = v, hasUnsavedChanges = true) } }
 
-    fun setEdgeLength(index: Int, v: String) {
-        _state.update { s ->
-            val edges = s.edges.toMutableList()
-            if (index in edges.indices) edges[index] = edges[index].copy(lengthMm = v)
-            s.copy(edges = edges, hasUnsavedChanges = true)
+    fun moveVertexAction(index: Int, newPosition: Vertex) {
+        _state.update { it.copy(vertices = moveVertex(it.vertices, index, newPosition), hasUnsavedChanges = true) }
+        recalculate()
+    }
+
+    // Вставляє вершину на стіні edgeIndex і переносить прорізи: ті, що були
+    // на edgeIndex, лишаються на ній, якщо їхній offset менший за відстань
+    // до нової точки, інакше переїжджають на нову стіну (edgeIndex+1) з
+    // відповідно скоригованим offset. Прорізи на стінах після edgeIndex
+    // зсувають номер стіни на +1.
+    fun insertVertex(edgeIndex: Int, atPoint: Vertex) {
+        val s = _state.value
+        val a = s.vertices.getOrNull(edgeIndex) ?: return
+        val splitDistMm = Math.round(distance(a, atPoint) * 1000.0).toInt()
+        val newVertices = insertVertexOnEdge(s.vertices, edgeIndex, atPoint)
+        _state.update { it.copy(vertices = newVertices, hasUnsavedChanges = true) }
+        viewModelScope.launch {
+            s.openings.forEach { o ->
+                when {
+                    o.wallEdgeIndex < edgeIndex -> Unit
+                    o.wallEdgeIndex == edgeIndex && o.offsetMm < splitDistMm -> Unit
+                    o.wallEdgeIndex == edgeIndex -> roomRepo.upsertOpening(o.copy(wallEdgeIndex = edgeIndex + 1, offsetMm = o.offsetMm - splitDistMm))
+                    else -> roomRepo.upsertOpening(o.copy(wallEdgeIndex = o.wallEdgeIndex + 1))
+                }
+            }
         }
         recalculate()
     }
 
-    fun setEdgeAngle(index: Int, v: String) {
-        _state.update { s ->
-            val edges = s.edges.toMutableList()
-            if (index in edges.indices) edges[index] = edges[index].copy(angleDeg = v)
-            s.copy(edges = edges, hasUnsavedChanges = true)
+    // Повертає false і не видаляє вершину, якщо на суміжній стіні (до або
+    // після) є хоч один проріз — користувач має спершу прибрати прорізи.
+    fun removeVertexAction(index: Int): Boolean {
+        val s = _state.value
+        val n = s.vertices.size
+        val prevEdge = (index - 1 + n) % n
+        val hasAdjacentOpening = s.openings.any { it.wallEdgeIndex == prevEdge || it.wallEdgeIndex == index }
+        if (hasAdjacentOpening) {
+            _state.update { it.copy(error = "Спершу приберіть проріз(и) на суміжній стіні") }
+            return false
         }
+        val newVertices = removeVertex(s.vertices, index) ?: run {
+            _state.update { it.copy(error = "Кімната повинна мати щонайменше 3 стіни") }
+            return false
+        }
+        _state.update { it.copy(vertices = newVertices, hasUnsavedChanges = true) }
+        viewModelScope.launch {
+            s.openings.forEach { o ->
+                if (o.wallEdgeIndex > index) {
+                    roomRepo.upsertOpening(o.copy(wallEdgeIndex = o.wallEdgeIndex - 1))
+                }
+            }
+        }
+        recalculate()
+        return true
+    }
+
+    fun setEdgeLengthAction(edgeIndex: Int, newLengthMm: Int) {
+        _state.update { it.copy(vertices = setEdgeLength(it.vertices, edgeIndex, newLengthMm), hasUnsavedChanges = true) }
         recalculate()
     }
 
-    fun applyDrawnEdges(edges: List<Edge>) {
-        _state.update {
-            it.copy(
-                isRectangle = false,
-                edges = edges.map { e -> EdgeInput(e.lengthMm.toString(), String.format("%.1f", e.interiorAngleDeg)) },
-                hasUnsavedChanges = true
-            )
-        }
+    fun setInteriorAngleAction(vertexIndex: Int, newAngleDeg: Double) {
+        _state.update { it.copy(vertices = setInteriorAngle(it.vertices, vertexIndex, newAngleDeg), hasUnsavedChanges = true) }
         recalculate()
     }
 
-    fun addEdge() {
-        _state.update { it.copy(edges = it.edges + EdgeInput("3000", "90"), hasUnsavedChanges = true) }
-        recalculate()
-    }
-
-    fun removeEdge() {
-        if (_state.value.edges.size > 3) {
-            _state.update { it.copy(edges = it.edges.dropLast(1), hasUnsavedChanges = true) }
-            recalculate()
-        }
+    // Додає нову вершину посередині останньої стіни — зручний спосіб додати
+    // кут без точного довгого натискання по канвасу.
+    fun addEdgeAtEnd() {
+        val s = _state.value
+        val n = s.vertices.size
+        if (n < 3) return
+        val a = s.vertices[n - 1]
+        val b = s.vertices[0]
+        val mid = Vertex((a.x + b.x) / 2, (a.y + b.y) / 2)
+        insertVertex(n - 1, mid)
     }
 
     fun addOpening(wallEdgeIndex: Int, offsetMm: Int, kind: OpeningKind, widthMm: Int, heightMm: Int, sillMm: Int) {
@@ -154,7 +171,6 @@ class GeometryViewModel @Inject constructor(
         }
     }
 
-    // Живе перетягування отвору вздовж стіни на плані — оновлює лише offsetMm, решту полів лишає без змін.
     fun moveOpening(openingId: String, newOffsetMm: Int) {
         val existing = _state.value.openings.firstOrNull { it.id == openingId } ?: return
         viewModelScope.launch { roomRepo.upsertOpening(existing.copy(offsetMm = newOffsetMm)) }
@@ -166,12 +182,8 @@ class GeometryViewModel @Inject constructor(
 
     fun saveGeometry() {
         val s = _state.value
-        if (s.polygonResult?.selfIntersects == true) {
+        if (s.selfIntersects) {
             _state.update { it.copy(error = "Стіни контуру перетинаються. Виправте форму перед збереженням.") }
-            return
-        }
-        if (s.polygonResult?.status == ClosureStatus.Error) {
-            _state.update { it.copy(error = "Нев'язка контуру перевищує 10 см. Перевірте виміри.") }
             return
         }
         if (s.openingWarning != null) {
@@ -181,22 +193,9 @@ class GeometryViewModel @Inject constructor(
         val room = s.room ?: return
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            val geometry = if (s.isRectangle) {
-                RoomGeometry.Rectangle(
-                    s.widthMm.toIntOrNull() ?: 4000,
-                    s.lengthMm.toIntOrNull() ?: 3000
-                )
-            } else {
-                val edges = s.edges.mapNotNull { e ->
-                    val l = e.lengthMm.toIntOrNull() ?: return@mapNotNull null
-                    val a = e.angleDeg.replace(",", ".").toDoubleOrNull() ?: 90.0
-                    Edge(l, a)
-                }
-                RoomGeometry.Polygon(edges)
-            }
             roomRepo.updateRoom(
                 room.copy(
-                    geometry = geometry,
+                    geometry = RoomGeometry.Polygon(s.vertices),
                     heightMm = s.heightMm.toIntOrNull()
                 )
             )
@@ -206,58 +205,17 @@ class GeometryViewModel @Inject constructor(
 
     private fun recalculate() {
         val s = _state.value
-        if (s.isRectangle) {
-            val w = s.widthMm.toIntOrNull() ?: return
-            val l = s.lengthMm.toIntOrNull() ?: return
-            val area = rectangleAreaM2(w, l)
-            val perimeter = rectanglePerimeterM(w, l)
-            val vertices = rectangleVertices(w, l)
-            _state.update {
-                it.copy(
-                    floorAreaM2 = area,
-                    perimeter = perimeter,
-                    polygonVertices = vertices,
-                    closureWarning = null,
-                    openingWarning = computeOpeningWarning(vertices, s.openings)
-                )
-            }
-        } else {
-            val edges = s.edges.mapNotNull { e ->
-                val l = e.lengthMm.toIntOrNull() ?: return
-                val a = e.angleDeg.replace(",", ".").toDoubleOrNull() ?: 90.0
-                Edge(l, a)
-            }
-            if (edges.size < 3) return
-
-            val angleError = validateAngleSum(edges)
-            if (angleError > 1.0) {
-                _state.update { it.copy(closureWarning = "Сума кутів відхиляється на ${String.format("%.1f", angleError)}° від теоретичної") }
-            }
-
-            val result = buildPolygon(edges)
-            val area = polygonAreaM2(result.vertices)
-            val perimeter = perimeterM(result.vertices)
-            val warning = when {
-                result.selfIntersects -> "Стіни контуру перетинаються — форма невалідна. Перевірте кути та довжини ребер."
-                result.status == ClosureStatus.WarningAutoFixed ->
-                    "Нев'язка замикання ${String.format("%.1f", result.closureErrorM * 100)} см — застосована автокорекція"
-                result.status == ClosureStatus.Error ->
-                    "Нев'язка замикання ${String.format("%.1f", result.closureErrorM * 100)} см перевищує допустимі 10 см"
-                else -> null
-            }
-            _state.update { it.copy(
-                polygonResult = result,
-                polygonVertices = result.vertices,
-                floorAreaM2 = area,
-                perimeter = perimeter,
-                closureWarning = warning,
-                openingWarning = computeOpeningWarning(result.vertices, s.openings)
-            ) }
+        if (s.vertices.size < 3) return
+        _state.update {
+            it.copy(
+                floorAreaM2 = polygonAreaM2(it.vertices),
+                perimeter = perimeterM(it.vertices),
+                selfIntersects = hasSelfIntersection(it.vertices),
+                openingWarning = computeOpeningWarning(it.vertices, it.openings)
+            )
         }
     }
 
-    // Перевіряє прорізи кожної стіни (вихід за межі, перекриття) — окреме від нев'язки контуру попередження,
-    // яке так само блокує збереження геометрії (saveGeometry()).
     private fun computeOpeningWarning(vertices: List<Vertex>, openings: List<Opening>): String? {
         val n = vertices.size
         if (n < 3) return null
