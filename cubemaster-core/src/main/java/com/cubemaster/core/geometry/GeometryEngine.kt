@@ -228,7 +228,7 @@ private fun perpendicularDistance(point: Vertex, lineStart: Vertex, lineEnd: Ver
 fun snapToGrid(v: Vertex, stepM: Double): Vertex =
     Vertex(Math.round(v.x / stepM) * stepM, Math.round(v.y / stepM) * stepM)
 
-// Обернена до buildPolygon: реальні вершини (в будь-якому напрямку обходу) -> ребра з довжиною і внутрішнім кутом.
+// Display-функція: реальні вершини (в будь-якому напрямку обходу) -> ребра з довжиною і внутрішнім кутом.
 // Кути коректно рахуються і для угнутих вершин (>180°) незалежно від напрямку обходу вхідного списку.
 fun verticesToEdges(vertices: List<Vertex>): List<Edge> {
     val n = vertices.size
