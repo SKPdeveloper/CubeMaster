@@ -84,6 +84,11 @@ class GeometryViewModel @Inject constructor(
         recalculate()
     }
 
+    fun applyInitialVertices(vertices: List<Vertex>) {
+        _state.update { it.copy(vertices = vertices, hasUnsavedChanges = true) }
+        recalculate()
+    }
+
     // Вставляє вершину на стіні edgeIndex і переносить прорізи: ті, що були
     // на edgeIndex, лишаються на ній, якщо їхній offset менший за відстань
     // до нової точки, інакше переїжджають на нову стіну (edgeIndex+1) з

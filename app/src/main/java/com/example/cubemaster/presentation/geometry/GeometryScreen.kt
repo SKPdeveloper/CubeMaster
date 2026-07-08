@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cubemaster.core.geometry.ClosureStatus
 import com.cubemaster.core.geometry.Vertex
 import com.cubemaster.core.geometry.distance
 import com.cubemaster.core.geometry.validateWallOpenings
@@ -113,14 +112,15 @@ fun GeometryScreen(
                 Text("Демонтаж")
             }
 
-            // Попередження нев'язки
-            state.closureWarning?.let { WarningCard(it) }
+            if (state.selfIntersects) {
+                WarningCard("Стіни контуру перетинаються — виправте форму перед збереженням")
+            }
             state.openingWarning?.let { WarningCard("Прорізи: $it") }
         }
     }
 
     openingDialogRequest?.let { request ->
-        val wallLen = wallLengthMm(state.polygonVertices, request.wallIndex)
+        val wallLen = wallLengthMm(state.vertices, request.wallIndex)
         val otherOpenings = state.openings.filter { it.wallEdgeIndex == request.wallIndex && it.id != request.editing?.id }
         AddOpeningDialog(
             wallIndex = request.wallIndex,
@@ -164,148 +164,81 @@ private fun GeometryTab(
     onWallTap: (wallIndex: Int, offsetMm: Int) -> Unit,
     onOpeningTap: (openingId: String) -> Unit
 ) {
-    var drawMode by remember { mutableStateOf(false) }
+    var pendingRemoveVertex by remember { mutableStateOf<Int?>(null) }
+    var showPhotoImport by remember { mutableStateOf(false) }
 
-    // Перемикач прямокутник/полігон/малювати
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterChip(
-            selected = state.isRectangle && !drawMode,
-            onClick = { drawMode = false; viewModel.setRectangleMode(true) },
-            label = { Text("Прямокутник") }
+    OutlinedButton(
+        onClick = { showPhotoImport = !showPhotoImport },
+        modifier = Modifier.fillMaxWidth()
+    ) { Text(if (showPhotoImport) "Сховати імпорт фото плану" else "Імпортувати фото плану (замінить поточну форму)") }
+    if (showPhotoImport) {
+        FloorplanDrawFlow(
+            onShapeConfirmed = { edges ->
+                val vertices = buildVerticesFromEdges(edges)
+                viewModel.applyInitialVertices(vertices)
+                showPhotoImport = false
+            },
+            onImagePicked = { uri -> viewModel.addFloorplanPhoto(uri) },
+            modifier = Modifier.fillMaxWidth()
         )
-        FilterChip(
-            selected = !state.isRectangle && !drawMode,
-            onClick = { drawMode = false; viewModel.setRectangleMode(false) },
-            label = { Text("Довільний контур") }
-        )
-        FilterChip(
-            selected = drawMode,
-            onClick = { drawMode = true },
-            label = { Text("Малювати") }
-        )
-    }
-
-    if (drawMode) {
-        var useFloorplan by remember { mutableStateOf(false) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = !useFloorplan,
-                onClick = { useFloorplan = false },
-                label = { Text("Порожній аркуш") }
-            )
-            FilterChip(
-                selected = useFloorplan,
-                onClick = { useFloorplan = true },
-                label = { Text("За фото плану") }
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        if (useFloorplan) {
-            FloorplanDrawFlow(
-                onShapeConfirmed = { edges ->
-                    viewModel.applyDrawnEdges(edges)
-                    drawMode = false
-                },
-                onImagePicked = { uri -> viewModel.addFloorplanPhoto(uri) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            FreehandDrawCanvas(
-                onShapeConfirmed = { edges ->
-                    viewModel.applyDrawnEdges(edges)
-                    drawMode = false
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
         return
     }
 
-    if (state.isRectangle) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            NumberInputField(
-                value = state.widthMm,
-                onValueChange = viewModel::setWidth,
-                label = "Ширина",
-                unit = "мм",
-                modifier = Modifier.weight(1f)
+    if (state.vertices.size < 3) return
+
+    Text(
+        "Перетягніть вершину, щоб змінити форму. Довге натискання по стіні додає кут, довге натискання на вершині — прибирає її. Короткий тап по стіні додає проріз.",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    RoomPlanCanvas(
+        rooms = listOf(
+            PlacedRoom(
+                roomId = state.room?.id ?: "",
+                label = state.room?.name ?: "",
+                vertices = state.vertices,
+                openings = state.openings,
+                hasSelfIntersection = state.selfIntersects
             )
+        ),
+        mode = PlanInteractionMode.SingleRoomEdit,
+        onWallTap = { _, wallIndex, offsetMm -> onWallTap(wallIndex, offsetMm) },
+        onOpeningDrag = { openingId, newOffsetMm -> viewModel.moveOpening(openingId, newOffsetMm) },
+        onOpeningTap = onOpeningTap,
+        onVertexDrag = { _, index, newVertex -> viewModel.moveVertexAction(index, newVertex) },
+        onWallLongPress = { _, wallIndex, atPoint -> viewModel.insertVertex(wallIndex, atPoint) },
+        onVertexLongPress = { _, index -> pendingRemoveVertex = index },
+        modifier = Modifier.fillMaxWidth().height(280.dp)
+    )
+
+    // Таблиця чисел — синхронна з канвасом в обидва боки
+    state.edges.forEachIndexed { i, edge ->
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("${i + 1}.", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(24.dp))
             NumberInputField(
-                value = state.lengthMm,
-                onValueChange = viewModel::setLength,
+                value = edge.lengthMm.toString(),
+                onValueChange = { v -> v.toIntOrNull()?.let { viewModel.setEdgeLengthAction(i, it) } },
                 label = "Довжина",
                 unit = "мм",
+                helperText = "Довжина цієї стіни",
+                modifier = Modifier.weight(1f)
+            )
+            NumberInputField(
+                value = String.format("%.1f", edge.interiorAngleDeg),
+                onValueChange = { v -> v.replace(",", ".").toDoubleOrNull()?.let { viewModel.setInteriorAngleAction(i, it) } },
+                label = "Кут",
+                unit = "°",
+                helperText = "Внутрішній кут у вершині на початку цієї стіни, 90° — прямий",
                 modifier = Modifier.weight(1f)
             )
         }
-    } else {
-        // Таблиця ребер
-        state.edges.forEachIndexed { i, edge ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("${i + 1}.", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(24.dp))
-                NumberInputField(
-                    value = edge.lengthMm,
-                    onValueChange = { viewModel.setEdgeLength(i, it) },
-                    label = "Довжина",
-                    unit = "мм",
-                    helperText = "Довжина цієї стіни",
-                    modifier = Modifier.weight(1f)
-                )
-                NumberInputField(
-                    value = edge.angleDeg,
-                    onValueChange = { viewModel.setEdgeAngle(i, it) },
-                    label = "Кут",
-                    unit = "°",
-                    helperText = "Внутрішній кут, 90° — прямий",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { viewModel.addEdge() }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.Add, null); Spacer(Modifier.width(4.dp)); Text("Ребро")
-            }
-            OutlinedButton(
-                onClick = { viewModel.removeEdge() },
-                enabled = state.edges.size > 3,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.Remove, null); Spacer(Modifier.width(4.dp)); Text("Прибрати")
-            }
-        }
     }
-
-    // План кімнати — тепер завжди, і для прямокутника, і для довільного контуру.
-    // Тап по вільній стіні додає проріз, тап/перетягування наявного прорізу — редагує його позицію.
-    if (state.polygonVertices.isNotEmpty()) {
-        Text(
-            "Тапніть по стіні, щоб додати проріз. Перетягніть наявний проріз, щоб змістити його вздовж стіни.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        RoomPlanCanvas(
-            rooms = listOf(
-                PlacedRoom(
-                    roomId = state.room?.id ?: "",
-                    label = state.room?.name ?: "",
-                    vertices = state.polygonVertices,
-                    openings = state.openings,
-                    status = if (state.polygonResult?.selfIntersects == true) ClosureStatus.Error
-                        else state.polygonResult?.status ?: ClosureStatus.Ok
-                )
-            ),
-            mode = PlanInteractionMode.SingleRoomEdit,
-            onWallTap = { _, wallIndex, offsetMm -> onWallTap(wallIndex, offsetMm) },
-            onOpeningDrag = { openingId, newOffsetMm -> viewModel.moveOpening(openingId, newOffsetMm) },
-            onOpeningTap = onOpeningTap,
-            modifier = Modifier.fillMaxWidth().height(240.dp)
-        )
+    OutlinedButton(onClick = { viewModel.addEdgeAtEnd() }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Default.Add, null); Spacer(Modifier.width(4.dp)); Text("Стіна")
     }
 
     NumberInputField(
@@ -315,13 +248,49 @@ private fun GeometryTab(
         unit = "мм"
     )
 
-    // Підсумок розмірів
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Площа підлоги: ${String.format("%.2f", state.floorAreaM2)} м²", style = MaterialTheme.typography.bodyMedium)
             Text("Периметр: ${String.format("%.2f", state.perimeter)} м", style = MaterialTheme.typography.bodyMedium)
         }
     }
+
+    pendingRemoveVertex?.let { index ->
+        AlertDialog(
+            onDismissRequest = { pendingRemoveVertex = null },
+            title = { Text("Прибрати кут?") },
+            text = { Text("Дві сусідні стіни об'єднаються в одну.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    // Якщо видалення заблоковано (сусідній проріз або мінімум 3 стіни),
+                    // viewModel.removeVertexAction сама виставляє state.error — той самий
+                    // LaunchedEffect(state.error) на початку GeometryScreen покаже Snackbar,
+                    // окремої обробки результату тут не потрібно.
+                    viewModel.removeVertexAction(index)
+                    pendingRemoveVertex = null
+                }) { Text("Прибрати") }
+            },
+            dismissButton = { TextButton(onClick = { pendingRemoveVertex = null }) { Text("Скасувати") } }
+        )
+    }
+}
+
+private fun buildVerticesFromEdges(edges: List<Edge>): List<Vertex> {
+    val vertices = mutableListOf(Vertex(0.0, 0.0))
+    var heading = 0.0
+    var x = 0.0
+    var y = 0.0
+    for (i in edges.indices) {
+        val lengthM = edges[i].lengthMm / 1000.0
+        x += lengthM * kotlin.math.cos(heading)
+        y += lengthM * kotlin.math.sin(heading)
+        if (i < edges.size - 1) vertices.add(Vertex(x, y))
+        if (i + 1 < edges.size) {
+            val exterior = Math.PI - Math.toRadians(edges[(i + 1) % edges.size].interiorAngleDeg)
+            heading -= exterior
+        }
+    }
+    return vertices
 }
 
 @Composable
@@ -385,9 +354,9 @@ private fun OpeningsTab(
     onOpeningEdit: (String) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    val edgeCount = if (state.isRectangle) 4 else state.edges.size
+    val edgeCount = state.edges.size
     for (i in 0 until edgeCount) {
-        val wallLen = wallLengthMm(state.polygonVertices, i)
+        val wallLen = wallLengthMm(state.vertices, i)
         val openingsOnEdge = state.openings.filter { it.wallEdgeIndex == i }
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
