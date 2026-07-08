@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -160,6 +161,19 @@ fun RoomPlanCanvas(
     var panOffset by remember { mutableStateOf(Offset.Zero) }
 
     val latestRooms by rememberUpdatedState(rooms)
+    // Скоуп, прив'язаний до композиції (скасовується, коли RoomPlanCanvas покидає
+    // композицію) і працює на тому ж диспетчері, що й решта composition (головний потік) —
+    // на відміну від GlobalScope, який не є структурним нащадком нічого і виконується
+    // на Dispatchers.Default (фоновий потік). awaitPointerEvent() — restricted-suspension
+    // функція (AwaitPointerEventScope позначений @RestrictsSuspension), тому цикл
+    // while(true) з awaitPointerEvent() НЕ можна обгорнути в coroutineScope { launch { } }
+    // (компілятор забороняє виклик restricted-функцій з вкладеної suspend-лямбди іншого
+    // типу) — натомість: launch запускається на цьому scope (сам виклик launch —
+    // не suspend-функція, тому обмеження не порушується), а гарантоване скасування
+    // на БУДЬ-якому шляху виходу з циклу (включно із зовнішнім скасуванням жестової
+    // корутини під час підвішеного awaitPointerEvent()) забезпечує try/finally навколо
+    // циклу.
+    val gestureScope = rememberCoroutineScope()
 
     Canvas(
         modifier = modifier
@@ -236,32 +250,43 @@ fun RoomPlanCanvas(
                             val (vertexIndex, room) = targetVertex!!
                             var totalDrag = Offset.Zero
                             var longPressFired = false
-                            // GlobalScope виправданий тут: job явно скасовується (cancel())
-                            // у кожній гілці виходу з жесту — витоку немає, а awaitEachGesture /
-                            // pointerInput не надає власного CoroutineScope для дочірніх задач
-                            // із затримкою.
-                            val longPressJob = kotlinx.coroutines.GlobalScope.launch {
+                            // gestureScope замість GlobalScope: launch без явного диспетчера
+                            // успадковує головний потік композиції (Critical #3 — жодної гонки
+                            // з totalDrag/longPressFired), а сам scope скасовується разом із
+                            // виходом RoomPlanCanvas з композиції. Гарантоване скасування
+                            // longPressJob на БУДЬ-якому шляху виходу з циклу — включно з
+                            // зовнішнім скасуванням жестової корутини (зміна mode ↔
+                            // pointerInput(mode), поки awaitPointerEvent() підвішений,
+                            // Critical #2) — забезпечує try/finally: finally виконується
+                            // і при звичайному break, і при CancellationException.
+                            val longPressJob = gestureScope.launch {
                                 delay(500)
                                 if (totalDrag.getDistance() < tapSlopPx) {
                                     longPressFired = true
                                     onVertexLongPress?.invoke(room.roomId, vertexIndex)
                                 }
                             }
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!change.pressed) {
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null) {
+                                        break
+                                    }
+                                    if (!change.pressed) {
+                                        change.consume()
+                                        break
+                                    }
+                                    totalDrag += change.positionChange()
                                     change.consume()
-                                    longPressJob.cancel()
-                                    break
+                                    if (totalDrag.getDistance() >= tapSlopPx && !longPressFired) {
+                                        longPressJob.cancel()
+                                        val scenePoint = transform.toScene(change.position)
+                                        onVertexDrag?.invoke(room.roomId, vertexIndex, scenePoint)
+                                    }
                                 }
-                                totalDrag += change.positionChange()
-                                change.consume()
-                                if (totalDrag.getDistance() >= tapSlopPx && !longPressFired) {
-                                    longPressJob.cancel()
-                                    val scenePoint = transform.toScene(change.position)
-                                    onVertexDrag?.invoke(room.roomId, vertexIndex, scenePoint)
-                                }
+                            } finally {
+                                longPressJob.cancel()
                             }
                         }
                         targetOpening != null -> {
@@ -294,9 +319,12 @@ fun RoomPlanCanvas(
                             val (wallIndex, room) = targetWall!!
                             var totalDrag = Offset.Zero
                             var longPressFired = false
-                            // GlobalScope виправданий тут так само, як і для вершини вище:
-                            // job явно скасовується в кожній гілці виходу з жесту.
-                            val longPressJob = kotlinx.coroutines.GlobalScope.launch {
+                            // gestureScope замість GlobalScope — те саме обґрунтування, що й
+                            // для гілки вершини вище: головний потік + try/finally гарантує
+                            // скасування на всіх шляхах виходу з циклу, включно із зовнішнім
+                            // скасуванням жестової корутини під час підвішеного
+                            // awaitPointerEvent().
+                            val longPressJob = gestureScope.launch {
                                 delay(500)
                                 if (totalDrag.getDistance() < tapSlopPx) {
                                     longPressFired = true
@@ -309,33 +337,39 @@ fun RoomPlanCanvas(
                                     onWallLongPress?.invoke(room.roomId, wallIndex, atPoint)
                                 }
                             }
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!change.pressed) {
-                                    longPressJob.cancel()
-                                    if (!longPressFired) {
-                                        if (totalDrag.getDistance() < tapSlopPx) {
-                                            val n = room.vertices.size
-                                            val a = room.vertices[wallIndex]
-                                            val b = room.vertices[(wallIndex + 1) % n]
-                                            val wallLenMm = distance(a, b) * 1000
-                                            val scenePoint = transform.toScene(down.position)
-                                            val t = projectionRatio(a, b, scenePoint)
-                                            onWallTap?.invoke(room.roomId, wallIndex, (t * wallLenMm).roundToInt())
-                                        } else {
-                                            panOffset += totalDrag
-                                        }
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null) {
+                                        break
                                     }
-                                    break
+                                    if (!change.pressed) {
+                                        if (!longPressFired) {
+                                            if (totalDrag.getDistance() < tapSlopPx) {
+                                                val n = room.vertices.size
+                                                val a = room.vertices[wallIndex]
+                                                val b = room.vertices[(wallIndex + 1) % n]
+                                                val wallLenMm = distance(a, b) * 1000
+                                                val scenePoint = transform.toScene(down.position)
+                                                val t = projectionRatio(a, b, scenePoint)
+                                                onWallTap?.invoke(room.roomId, wallIndex, (t * wallLenMm).roundToInt())
+                                            } else {
+                                                panOffset += totalDrag
+                                            }
+                                        }
+                                        break
+                                    }
+                                    val delta = change.positionChange()
+                                    totalDrag += delta
+                                    if (totalDrag.getDistance() > tapSlopPx && !longPressFired) {
+                                        longPressJob.cancel()
+                                        change.consume()
+                                        panOffset += delta
+                                    }
                                 }
-                                val delta = change.positionChange()
-                                totalDrag += delta
-                                if (totalDrag.getDistance() > tapSlopPx) {
-                                    longPressJob.cancel()
-                                    change.consume()
-                                    panOffset += delta
-                                }
+                            } finally {
+                                longPressJob.cancel()
                             }
                         }
                         targetRoom != null -> {
