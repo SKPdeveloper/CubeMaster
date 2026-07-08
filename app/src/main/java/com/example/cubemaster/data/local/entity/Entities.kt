@@ -32,10 +32,7 @@ data class RoomEntity(
     @PrimaryKey val id: String,
     val projectId: String,
     val name: String,
-    val geometryType: String, // "rectangle" | "polygon"
-    val widthMm: Int?,
-    val lengthMm: Int?,
-    val edgesJson: String?,
+    val verticesJson: String,
     val heightMode: String,
     val heightMm: Int?,
     val cornerHeightsMmJson: String?,

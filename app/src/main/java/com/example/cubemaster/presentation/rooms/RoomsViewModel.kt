@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cubemaster.core.geometry.polygonAreaM2
+import com.cubemaster.core.geometry.rectangleVertices
 import com.cubemaster.core.model.*
 import com.example.cubemaster.data.remote.AuthRepository
 import com.example.cubemaster.domain.presetLayersFor
@@ -58,13 +60,7 @@ class RoomsViewModel @Inject constructor(
         viewModelScope.launch {
             roomRepo.observeRooms(projectId).collect { rooms ->
                 val items = rooms.map { room ->
-                    val areaM2 = when (val g = room.geometry) {
-                        is RoomGeometry.Rectangle -> (g.widthMm / 1000.0) * (g.lengthMm / 1000.0)
-                        is RoomGeometry.Polygon -> {
-                            val result = com.cubemaster.core.geometry.buildPolygon(g.edges)
-                            com.cubemaster.core.geometry.polygonAreaM2(result.vertices)
-                        }
-                    }
+                    val areaM2 = polygonAreaM2((room.geometry as RoomGeometry.Polygon).vertices)
                     val surfaces = surfaceRepo.observeSurfaces(room.id).first()
                     RoomUiItem(room, areaM2, surfaces)
                 }
@@ -96,7 +92,7 @@ class RoomsViewModel @Inject constructor(
                 val room = roomRepo.createRoom(
                     projectId = projectId,
                     name = name,
-                    geometry = RoomGeometry.Rectangle(4000, 3000),
+                    geometry = RoomGeometry.Polygon(rectangleVertices(4000, 3000)),
                     heightMode = HeightMode.Uniform,
                     heightMm = 2700,
                     cornerHeightsMm = null,

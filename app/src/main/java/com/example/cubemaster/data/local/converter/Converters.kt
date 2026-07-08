@@ -45,17 +45,12 @@ object EntityMapper {
         )
 
     fun mapToRoomDomain(e: com.example.cubemaster.data.local.entity.RoomEntity, json: Json): Room {
-        val geometry: RoomGeometry = if (e.geometryType == "rectangle") {
-            RoomGeometry.Rectangle(e.widthMm ?: 0, e.lengthMm ?: 0)
-        } else {
-            val edges = e.edgesJson?.let { parseEdges(it, json) } ?: emptyList()
-            RoomGeometry.Polygon(edges)
-        }
+        val vertices = parseVertices(e.verticesJson, json)
         return Room(
             id = e.id,
             projectId = e.projectId,
             name = e.name,
-            geometry = geometry,
+            geometry = RoomGeometry.Polygon(vertices),
             heightMode = HeightMode.valueOf(e.heightMode),
             heightMm = e.heightMm,
             cornerHeightsMm = e.cornerHeightsMmJson?.let { parseIntList(it, json) },
@@ -69,21 +64,12 @@ object EntityMapper {
     }
 
     fun mapToRoomEntity(d: Room, json: Json): com.example.cubemaster.data.local.entity.RoomEntity {
-        val (geometryType, widthMm, lengthMm, edgesJson) = when (val g = d.geometry) {
-            is RoomGeometry.Rectangle -> Quadruple("rectangle", g.widthMm, g.lengthMm, null)
-            is RoomGeometry.Polygon -> Quadruple(
-                "polygon", null, null,
-                json.encodeToString(g.edges.map { mapOf("lengthMm" to it.lengthMm, "angleDeg" to it.interiorAngleDeg) })
-            )
-        }
+        val vertices = (d.geometry as RoomGeometry.Polygon).vertices
         return com.example.cubemaster.data.local.entity.RoomEntity(
             id = d.id,
             projectId = d.projectId,
             name = d.name,
-            geometryType = geometryType,
-            widthMm = widthMm,
-            lengthMm = lengthMm,
-            edgesJson = edgesJson,
+            verticesJson = json.encodeToString(vertices.map { mapOf("x" to it.x, "y" to it.y) }),
             heightMode = d.heightMode.name,
             heightMm = d.heightMm,
             cornerHeightsMmJson = d.cornerHeightsMm?.let { json.encodeToString(it) },
@@ -144,14 +130,14 @@ object EntityMapper {
             syncState = d.syncState.name
         )
 
-    private fun parseEdges(jsonStr: String, json: Json): List<Edge> {
+    private fun parseVertices(jsonStr: String, json: Json): List<com.cubemaster.core.geometry.Vertex> {
         return try {
             val arr = json.parseToJsonElement(jsonStr).jsonArray
             arr.map { el ->
                 val obj = el.jsonObject
-                Edge(
-                    obj["lengthMm"]!!.jsonPrimitive.int,
-                    obj["angleDeg"]!!.jsonPrimitive.double
+                com.cubemaster.core.geometry.Vertex(
+                    obj["x"]!!.jsonPrimitive.double,
+                    obj["y"]!!.jsonPrimitive.double
                 )
             }
         } catch (_: Exception) { emptyList() }
@@ -194,5 +180,3 @@ object EntityMapper {
         return arr.toString()
     }
 }
-
-data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
