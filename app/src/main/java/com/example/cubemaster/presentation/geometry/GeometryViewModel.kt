@@ -99,7 +99,16 @@ class GeometryViewModel @Inject constructor(
         val a = s.vertices.getOrNull(edgeIndex) ?: return
         val splitDistMm = Math.round(distance(a, atPoint) * 1000.0).toInt()
         val newVertices = insertVertexOnEdge(s.vertices, edgeIndex, atPoint)
-        _state.update { it.copy(vertices = newVertices, hasUnsavedChanges = true) }
+        val straddling = s.openings.any { o ->
+            o.wallEdgeIndex == edgeIndex && o.offsetMm < splitDistMm && o.offsetMm + o.widthMm > splitDistMm
+        }
+        _state.update {
+            it.copy(
+                vertices = newVertices,
+                hasUnsavedChanges = true,
+                error = if (straddling) "Проріз перетинає нову стіну — перевірте його розташування" else it.error
+            )
+        }
         viewModelScope.launch {
             s.openings.forEach { o ->
                 when {

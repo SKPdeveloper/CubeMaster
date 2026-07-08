@@ -230,33 +230,17 @@ fun snapToGrid(v: Vertex, stepM: Double): Vertex =
 
 // Display-функція: реальні вершини (в будь-якому напрямку обходу) -> ребра з довжиною і внутрішнім кутом.
 // Кути коректно рахуються і для угнутих вершин (>180°) незалежно від напрямку обходу вхідного списку.
+// Вершини НЕ перевпорядковуються — edges[i] завжди відповідає стіні vertices[i] -> vertices[(i+1)%n],
+// тому індекс рядка таблиці лишається синхронізованим з raw-індексом вершини (див. GeometryViewModel,
+// OpeningsTab, FreehandDrawCanvas — усі використовують той самий, не перевпорядкований, порядок).
 fun verticesToEdges(vertices: List<Vertex>): List<Edge> {
     val n = vertices.size
     require(n >= 3) { "Полігон повинен мати щонайменше 3 вершини" }
 
-    var area2 = 0.0
-    for (i in 0 until n) {
-        val j = (i + 1) % n
-        area2 += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
-    }
-    val ordered = if (area2 < 0) vertices.reversed() else vertices
-
-    return ordered.indices.map { i ->
-        val prev = ordered[(i - 1 + n) % n]
-        val curr = ordered[i]
-        val next = ordered[(i + 1) % n]
-
-        val ax = curr.x - prev.x
-        val ay = curr.y - prev.y
-        val bx = next.x - curr.x
-        val by = next.y - curr.y
-
-        val crossAB = ax * by - ay * bx
-        val dotAB = ax * bx + ay * by
-        val exteriorTurnDeg = Math.toDegrees(atan2(crossAB, dotAB))
-        val interiorAngleDeg = 180.0 - exteriorTurnDeg
-
-        val lengthMm = Math.round(distance(curr, next) * 1000.0).toInt()
+    return vertices.indices.map { i ->
+        val next = vertices[(i + 1) % n]
+        val lengthMm = Math.round(distance(vertices[i], next) * 1000.0).toInt()
+        val interiorAngleDeg = interiorAngleAtDeg(vertices, i)
         Edge(lengthMm, interiorAngleDeg)
     }
 }
@@ -308,8 +292,8 @@ fun setEdgeLength(vertices: List<Vertex>, edgeIndex: Int, newLengthMm: Int): Lis
 }
 
 // Внутрішній кут у вершині vertexIndex, коректний незалежно від напрямку
-// обходу списку (на відміну від verticesToEdges — не перевпорядковує
-// вершини, тому індекс не "з'їжджає").
+// обходу списку — не перевпорядковує вершини, тому індекс не "з'їжджає"
+// (те саме стосується і verticesToEdges, яка використовує цю функцію).
 fun interiorAngleAtDeg(vertices: List<Vertex>, vertexIndex: Int): Double {
     val n = vertices.size
     val prev = vertices[(vertexIndex - 1 + n) % n]

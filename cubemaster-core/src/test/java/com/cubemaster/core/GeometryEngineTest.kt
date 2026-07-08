@@ -95,6 +95,31 @@ class GeometryEngineTest {
     }
 
     @Test
+    fun `verticesToEdges не перевпорядковує вершини для CW-полігону - edge за raw-індексом`() {
+        // Прямокутна трапеція, обхід за годинниковою стрілкою (area2 < 0) — саме та гілка,
+        // яку раніше (помилково) перевпорядковувала verticesToEdges через vertices.reversed().
+        // Сторони навмисно різної довжини (4/3/5/6 м), щоб реверс давав ІНШИЙ порядок довжин
+        // за індексом, ніж правильний (не перевпорядкований) результат — квадрат/прямокутник
+        // цього б не показав через симетрію.
+        val vertices = listOf(
+            Vertex(0.0, 0.0), Vertex(0.0, 4.0), Vertex(3.0, 4.0), Vertex(6.0, 0.0)
+        )
+        val edges = verticesToEdges(vertices)
+        assertEquals(4, edges.size)
+        for (i in vertices.indices) {
+            val next = vertices[(i + 1) % vertices.size]
+            val expectedLengthMm = Math.round(distance(vertices[i], next) * 1000.0).toInt()
+            assertEquals("edges[$i] має відповідати стіні vertices[$i]->vertices[${(i + 1) % vertices.size}]", expectedLengthMm, edges[i].lengthMm)
+        }
+        // Явно фіксуємо очікувані значення — щоб тест провалився, якби формула
+        // distance() теж була випадково "зіпсована" так само, як стара реалізація.
+        assertEquals(4000, edges[0].lengthMm)
+        assertEquals(3000, edges[1].lengthMm)
+        assertEquals(5000, edges[2].lengthMm)
+        assertEquals(6000, edges[3].lengthMm)
+    }
+
+    @Test
     fun `moveVertex рухає лише задану вершину`() {
         val vertices = rectangleVertices(4000, 3000)
         val moved = moveVertex(vertices, 1, Vertex(5.0, 0.5))
