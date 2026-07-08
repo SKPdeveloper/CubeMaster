@@ -154,18 +154,15 @@ class LayersViewModel @Inject constructor(
     }
 
     private fun computeArea(room: Room, surface: Surface?, openings: List<Opening>): Double {
-        val height = (room.heightMm ?: 2700) / 1000.0
+        val vertices = (room.geometry as RoomGeometry.Polygon).vertices
         return when (surface?.kind) {
-            SurfaceKind.Floor, SurfaceKind.Ceiling -> when (val g = room.geometry) {
-                is RoomGeometry.Rectangle -> rectangleAreaM2(g.widthMm, g.lengthMm)
-                is RoomGeometry.Polygon -> polygonAreaM2(buildPolygon(g.edges).vertices)
-            }
+            SurfaceKind.Floor, SurfaceKind.Ceiling -> polygonAreaM2(vertices)
             SurfaceKind.Wall -> {
                 val edgeIndex = surface.wallEdgeIndex ?: 0
-                val edgeLengthMm = when (val g = room.geometry) {
-                    is RoomGeometry.Rectangle -> if (edgeIndex % 2 == 0) g.widthMm else g.lengthMm
-                    is RoomGeometry.Polygon -> g.edges.getOrNull(edgeIndex)?.lengthMm ?: 3000
-                }
+                val n = vertices.size
+                val edgeLengthMm = if (edgeIndex in 0 until n) {
+                    Math.round(distance(vertices[edgeIndex], vertices[(edgeIndex + 1) % n]) * 1000.0).toInt()
+                } else 3000
                 val h1 = room.heightMm ?: 2700
                 val gross = wallAreaGross(edgeLengthMm, h1, h1)
                 val wallOpenings = openings.filter { it.wallEdgeIndex == edgeIndex }
