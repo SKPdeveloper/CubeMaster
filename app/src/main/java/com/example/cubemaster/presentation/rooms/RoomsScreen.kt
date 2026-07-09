@@ -27,6 +27,9 @@ import com.cubemaster.core.geometry.roomGeometryVertices
 import com.cubemaster.core.model.RoomType
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun RoomsScreen(
@@ -40,6 +43,7 @@ fun RoomsScreen(
     viewModel: RoomsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var showCreateDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -81,7 +85,7 @@ fun RoomsScreen(
             }
         }
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
+        Box(Modifier.padding(padding).fillMaxSize().hazeSource(hazeState)) {
             when {
                 state.isLoading -> LoadingOverlay()
                 state.rooms.isEmpty() -> EmptyState("Немає кімнат. Натисніть + для додавання.")
@@ -98,6 +102,7 @@ fun RoomsScreen(
                         RoomCard(
                             item = item,
                             attachments = attachments,
+                            hazeState = hazeState,
                             onClick = { onRoomClick(item.room.id) },
                             onDelete = { viewModel.deleteRoom(item.room.id) },
                             onAddPhoto = { uri -> viewModel.addPhoto(item.room.id, uri) },
@@ -126,6 +131,7 @@ fun RoomsScreen(
 private fun RoomCard(
     item: RoomUiItem,
     attachments: List<com.cubemaster.core.model.Attachment>,
+    hazeState: HazeState?,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onAddPhoto: (android.net.Uri) -> Unit,
@@ -133,7 +139,7 @@ private fun RoomCard(
     onAddNote: (String) -> Unit,
     onDeleteAttachment: (com.cubemaster.core.model.Attachment) -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState, onClick = onClick) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
