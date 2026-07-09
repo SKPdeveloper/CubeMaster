@@ -15,6 +15,8 @@ import com.example.cubemaster.ui.components.CubeMasterTopBar
 import com.example.cubemaster.ui.components.EmptyState
 import com.example.cubemaster.ui.components.GlassCard
 import com.example.cubemaster.ui.components.InfoCard
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun ProjectDocumentsScreen(
@@ -22,6 +24,7 @@ fun ProjectDocumentsScreen(
     viewModel: ProjectDocumentsViewModel = hiltViewModel()
 ) {
     val documents by viewModel.documents.collectAsStateWithLifecycle(initialValue = emptyList())
+    val hazeState = rememberHazeState()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -37,11 +40,11 @@ fun ProjectDocumentsScreen(
         topBar = { CubeMasterTopBar(title = "Документи проєкту", onBack = onBack) }
     ) { padding ->
         Column(
-            modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp),
+            modifier = Modifier.padding(padding).fillMaxSize().hazeSource(hazeState).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             InfoCard("Договір, техпаспорт, технічні умови та інші документи проєкту — зберігаються разом із проєктом.")
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
+            GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     if (documents.isEmpty()) {
                         EmptyState("Немає доданих документів.")
