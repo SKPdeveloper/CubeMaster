@@ -26,6 +26,9 @@ import com.cubemaster.core.geometry.validateWallOpenings
 import com.cubemaster.core.model.*
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun GeometryScreen(
@@ -36,6 +39,7 @@ fun GeometryScreen(
     viewModel: GeometryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var openingDialogRequest by remember { mutableStateOf<OpeningDialogRequest?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -73,6 +77,7 @@ fun GeometryScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .hazeSource(hazeState)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
@@ -90,12 +95,14 @@ fun GeometryScreen(
                 0 -> GeometryTab(
                     state = state,
                     viewModel = viewModel,
+                    hazeState = hazeState,
                     onWallTap = { wallIndex, offsetMm -> openingDialogRequest = OpeningDialogRequest(wallIndex, offsetMm) },
                     onOpeningTap = onOpeningEdit
                 )
-                1 -> SurfacesTab(state, onLayersClick, viewModel)
+                1 -> SurfacesTab(state, onLayersClick, viewModel, hazeState)
                 2 -> OpeningsTab(
                     state = state,
+                    hazeState = hazeState,
                     onOpeningAdd = { wallIndex -> openingDialogRequest = OpeningDialogRequest(wallIndex, 0) },
                     onOpeningEdit = onOpeningEdit,
                     onDelete = { viewModel.deleteOpening(it) }
@@ -161,6 +168,7 @@ private fun wallLengthMm(vertices: List<Vertex>, wallIndex: Int): Int {
 private fun GeometryTab(
     state: GeometryUiState,
     viewModel: GeometryViewModel,
+    hazeState: HazeState?,
     onWallTap: (wallIndex: Int, offsetMm: Int) -> Unit,
     onOpeningTap: (openingId: String) -> Unit
 ) {
@@ -248,7 +256,7 @@ private fun GeometryTab(
         unit = "мм"
     )
 
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Площа підлоги: ${String.format("%.2f", state.floorAreaM2)} м²", style = MaterialTheme.typography.bodyMedium)
             Text("Периметр: ${String.format("%.2f", state.perimeter)} м", style = MaterialTheme.typography.bodyMedium)
@@ -294,10 +302,16 @@ private fun buildVerticesFromEdges(edges: List<Edge>): List<Vertex> {
 }
 
 @Composable
-private fun SurfacesTab(state: GeometryUiState, onLayersClick: (String) -> Unit, viewModel: GeometryViewModel) {
+private fun SurfacesTab(
+    state: GeometryUiState,
+    onLayersClick: (String) -> Unit,
+    viewModel: GeometryViewModel,
+    hazeState: HazeState?
+) {
     state.surfaces.forEach { surface ->
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
+            hazeState = hazeState,
             onClick = { onLayersClick(surface.id) }
         ) {
             Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
@@ -350,6 +364,7 @@ private fun SurfacesTab(state: GeometryUiState, onLayersClick: (String) -> Unit,
 @Composable
 private fun OpeningsTab(
     state: GeometryUiState,
+    hazeState: HazeState?,
     onOpeningAdd: (Int) -> Unit,
     onOpeningEdit: (String) -> Unit,
     onDelete: (String) -> Unit
@@ -358,7 +373,7 @@ private fun OpeningsTab(
     for (i in 0 until edgeCount) {
         val wallLen = wallLengthMm(state.vertices, i)
         val openingsOnEdge = state.openings.filter { it.wallEdgeIndex == i }
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
+        GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
