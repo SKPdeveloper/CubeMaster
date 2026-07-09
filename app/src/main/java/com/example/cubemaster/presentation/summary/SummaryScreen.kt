@@ -15,6 +15,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.model.MeasurementUnit
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun SummaryScreen(
@@ -24,6 +27,7 @@ fun SummaryScreen(
     viewModel: SummaryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var filterRoom by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -49,9 +53,9 @@ fun SummaryScreen(
             return@Scaffold
         }
 
-        Column(modifier = Modifier.padding(padding)) {
+        Column(modifier = Modifier.padding(padding).hazeSource(hazeState)) {
             // Шапка
-            Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
+            GlassCard(modifier = Modifier.fillMaxWidth().padding(16.dp), hazeState = hazeState) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -78,7 +82,7 @@ fun SummaryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(state.materialLines, key = { it.sku }) { line ->
-                    MaterialSummaryRow(line)
+                    MaterialSummaryRow(line, hazeState)
                 }
             }
         }
@@ -86,8 +90,8 @@ fun SummaryScreen(
 }
 
 @Composable
-private fun MaterialSummaryRow(line: SummaryMaterialLine) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+private fun MaterialSummaryRow(line: SummaryMaterialLine, hazeState: HazeState?) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
