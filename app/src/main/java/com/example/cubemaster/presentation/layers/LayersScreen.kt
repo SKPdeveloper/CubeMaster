@@ -20,6 +20,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.model.*
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun LayersScreen(
@@ -29,6 +32,7 @@ fun LayersScreen(
     viewModel: LayersViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var showAddLayerDialog by remember { mutableStateOf(false) }
     var showPresetsSheet by remember { mutableStateOf(false) }
     var showWaterproofingWarning by remember { mutableStateOf(false) }
@@ -62,10 +66,10 @@ fun LayersScreen(
             return@Scaffold
         }
 
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize().hazeSource(hazeState)) {
 
             // Заголовок поверхні
-            Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant) {
+            GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -110,7 +114,8 @@ fun LayersScreen(
                             onDelete = { viewModel.removeLayer(item.layer.id) },
                             onEditThickness = { layerToEditThickness = item.layer.id to (item.layer.thicknessMm?.toString() ?: "") },
                             onTogglePorous = { viewModel.setLayerPorous(item.layer.id, it) },
-                            onToggleDiagonal = { viewModel.setLayerDiagonal(item.layer.id, it) }
+                            onToggleDiagonal = { viewModel.setLayerDiagonal(item.layer.id, it) },
+                            hazeState = hazeState
                         )
                     }
                 }
@@ -118,7 +123,7 @@ fun LayersScreen(
 
             // Підсумок по матеріалах
             if (state.calculatedLayers.isNotEmpty()) {
-                SummaryFooter(state)
+                SummaryFooter(state, hazeState)
             }
         }
     }
@@ -182,9 +187,10 @@ private fun LayerCard(
     onDelete: () -> Unit,
     onEditThickness: () -> Unit,
     onTogglePorous: (Boolean) -> Unit,
-    onToggleDiagonal: (Boolean) -> Unit
+    onToggleDiagonal: (Boolean) -> Unit,
+    hazeState: HazeState?
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -261,12 +267,8 @@ private fun LayerCard(
 }
 
 @Composable
-private fun SummaryFooter(state: LayersUiState) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 4.dp
-    ) {
+private fun SummaryFooter(state: LayersUiState, hazeState: HazeState?) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
         val totalKg = state.calculatedLayers.sumOf { it.result.mixMassKg }
         Column(modifier = Modifier.padding(16.dp)) {
             OrnamentalDivider()
