@@ -19,6 +19,9 @@ import com.cubemaster.core.model.Project
 import com.cubemaster.core.model.SyncState
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -34,6 +37,7 @@ fun ProjectsScreen(
     viewModel: ProjectsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var showCreateDialog by remember { mutableStateOf(openCreateDialogOnStart) }
     var projectToEdit by remember { mutableStateOf<Project?>(null) }
     var projectToDelete by remember { mutableStateOf<Project?>(null) }
@@ -73,7 +77,7 @@ fun ProjectsScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(modifier = Modifier.padding(padding).fillMaxSize().hazeSource(hazeState)) {
             when {
                 state.isLoading -> LoadingOverlay()
                 state.projects.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -86,6 +90,7 @@ fun ProjectsScreen(
                     items(state.projects, key = { it.id }) { project ->
                         ProjectCard(
                             project = project,
+                            hazeState = hazeState,
                             onClick = { onProjectClick(project.id) },
                             onSummary = { onSummaryClick(project.id) },
                             onEdit = { projectToEdit = project },
@@ -145,12 +150,13 @@ fun ProjectsScreen(
 @Composable
 private fun ProjectCard(
     project: Project,
+    hazeState: HazeState?,
     onClick: () -> Unit,
     onSummary: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState, onClick = onClick) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
