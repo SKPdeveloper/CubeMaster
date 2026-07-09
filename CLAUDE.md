@@ -97,10 +97,11 @@ firestore.rules       — Правила безпеки Firestore
 ## Дизайн-система
 
 - Material 3 — тільки як інфраструктура (theming, accessibility), не візуально
-- Глазморфізм: `GlassCard` з `glassSurfaceLight/Dark` + `Modifier.blur` на Android 12+
-- Орнамент (`OrnamentalDivider`): зигзаг-ромби — ніколи у зонах числових даних
+- Глазморфізм: `GlassCard` — справжній backdrop blur через бібліотеку Haze (`dev.chrisbanes.haze`, minSdk 31+). Спільний `HazeState` (`rememberHazeState()`) на екран, фоновий контейнер позначається `Modifier.hazeSource(state)`, картка отримує `hazeState = state` і малює розмитий фон через `Modifier.hazeEffect(...)`. Без переданого `hazeState` картка деградує до статичного тонованого фону (сумісний дефолт для діалогів)
+- Бренд-кольори: `red = #CE1126` і `gold = #C9A227` — завжди різні константи, ніколи не прирівнювати одну до одної
+- Орнамент (`OrnamentalDivider`): технічна hairline-лінія з акцентним сегментом по центру (не зигзаг-ромби) — ніколи у зонах числових даних
 - Темна тема — пріоритетна (OLED, робота на об'єкті)
-- Tabular figures: клас `TabularNumberStyle` для числових колонок кошторису
+- Tabular figures: клас `TabularNumberStyle` для числових колонок кошторису — застосовувати повним `TextStyle` (`.copy(...)` від нього), а не розбирати на окремі поля, інакше `fontFeatureSettings = "tnum"` мовчки втрачається
 
 ## Структура Firestore Security Rules
 
