@@ -99,7 +99,7 @@ fun GeometryScreen(
                     onWallTap = { wallIndex, offsetMm -> openingDialogRequest = OpeningDialogRequest(wallIndex, offsetMm) },
                     onOpeningTap = onOpeningEdit
                 )
-                1 -> SurfacesTab(state, onLayersClick, viewModel, hazeState)
+                1 -> SurfacesTab(state, hazeState, onLayersClick, viewModel)
                 2 -> OpeningsTab(
                     state = state,
                     hazeState = hazeState,
@@ -304,9 +304,9 @@ private fun buildVerticesFromEdges(edges: List<Edge>): List<Vertex> {
 @Composable
 private fun SurfacesTab(
     state: GeometryUiState,
+    hazeState: HazeState?,
     onLayersClick: (String) -> Unit,
-    viewModel: GeometryViewModel,
-    hazeState: HazeState?
+    viewModel: GeometryViewModel
 ) {
     state.surfaces.forEach { surface ->
         GlassCard(
