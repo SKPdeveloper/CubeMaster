@@ -26,3 +26,6 @@ functions/lib/
 *.apk
 *.aab
 .aider*
+
+# Ізольовані git worktrees для роботи агентів
+/.worktrees/
