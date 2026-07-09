@@ -20,6 +20,9 @@ import com.cubemaster.core.calculation.wallDemolitionWarnings
 import com.cubemaster.core.model.*
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun DemolitionScreen(
@@ -28,6 +31,7 @@ fun DemolitionScreen(
     viewModel: DemolitionViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var showAddDialog by remember { mutableStateOf<DemolitionKind?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -51,6 +55,7 @@ fun DemolitionScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .hazeSource(hazeState)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
@@ -83,7 +88,7 @@ fun DemolitionScreen(
             OrnamentalDivider()
 
             // Зведення
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
+            GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Зведення демонтажу", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
@@ -99,7 +104,7 @@ fun DemolitionScreen(
             if (state.tasks.isNotEmpty()) {
                 Text("Додані роботи:", style = MaterialTheme.typography.titleSmall)
                 state.tasks.forEach { task ->
-                    DemolitionTaskRow(task = task, onDelete = { viewModel.deleteTask(task.id) })
+                    DemolitionTaskRow(task = task, hazeState = hazeState, onDelete = { viewModel.deleteTask(task.id) })
                 }
             }
 
@@ -448,8 +453,8 @@ private fun taskSummary(task: DemolitionTask): String {
 }
 
 @Composable
-private fun DemolitionTaskRow(task: DemolitionTask, onDelete: () -> Unit) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+private fun DemolitionTaskRow(task: DemolitionTask, hazeState: HazeState?, onDelete: () -> Unit) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
