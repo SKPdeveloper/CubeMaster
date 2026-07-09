@@ -16,6 +16,9 @@ import com.cubemaster.core.catalog.MaterialDefaults
 import com.cubemaster.core.model.MaterialCatalogEntry
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 fun CatalogScreen(
@@ -23,6 +26,7 @@ fun CatalogScreen(
     viewModel: CatalogViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hazeState = rememberHazeState()
     var expandedItem by remember { mutableStateOf<String?>(null) }
     var showRefreshDialog by remember { mutableStateOf(false) }
 
@@ -39,7 +43,7 @@ fun CatalogScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize().imePadding()) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize().hazeSource(hazeState).imePadding()) {
 
             // Пошук
             OutlinedTextField(
@@ -73,7 +77,8 @@ fun CatalogScreen(
                                 expandedItem = if (expandedItem == entry.sku) null else entry.sku
                             },
                             latestPrice = state.prices[entry.sku],
-                            onSetPrice = { price -> viewModel.setManualPrice(entry.sku, price) }
+                            onSetPrice = { price -> viewModel.setManualPrice(entry.sku, price) },
+                            hazeState = hazeState
                         )
                     }
                 }
@@ -106,13 +111,14 @@ private fun MaterialEntryCard(
     isExpanded: Boolean,
     onToggle: () -> Unit,
     latestPrice: Double?,
-    onSetPrice: (Double) -> Unit
+    onSetPrice: (Double) -> Unit,
+    hazeState: HazeState?
 ) {
     // Ключ на latestPrice — щоб поле оновилось, коли ціна довантажиться з БД
     // (наприклад, одразу після відкриття екрана чи після "Оновити ціни").
     var priceInput by remember(latestPrice) { mutableStateOf(latestPrice?.toString() ?: "") }
 
-    GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onToggle) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), hazeState = hazeState, onClick = onToggle) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
