@@ -28,6 +28,9 @@ import com.example.cubemaster.ui.components.CubeMasterTopBar
 import com.example.cubemaster.ui.components.GlassCard
 import com.example.cubemaster.ui.components.OrnamentalDivider
 import com.example.cubemaster.ui.theme.CubeMasterColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 private data class HelpSection(val title: String, val body: String)
 
@@ -192,11 +195,12 @@ private val helpSections = listOf(
 
 @Composable
 fun HelpScreen(onBack: () -> Unit) {
+    val hazeState = rememberHazeState()
     Scaffold(
         topBar = { CubeMasterTopBar(title = "Довідка", onBack = onBack) }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxSize(),
+            modifier = Modifier.padding(padding).fillMaxSize().hazeSource(hazeState),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -209,18 +213,19 @@ fun HelpScreen(onBack: () -> Unit) {
                 OrnamentalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
             items(helpSections) { section ->
-                HelpSectionCard(section)
+                HelpSectionCard(section, hazeState)
             }
         }
     }
 }
 
 @Composable
-private fun HelpSectionCard(section: HelpSection) {
+private fun HelpSectionCard(section: HelpSection, hazeState: HazeState?) {
     var expanded by remember { mutableStateOf(false) }
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
+        hazeState = hazeState,
         onClick = { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
