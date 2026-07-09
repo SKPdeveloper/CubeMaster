@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -13,12 +14,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.cubemaster.ui.theme.CubeMasterColors
 
-// Геометричний розділювач у стилі кролевецького орнаменту
-// Повторюваний зигзаг з ромбами — горизонтальна смуга
+// Технічна hairline-лінія з акцентним сегментом по центру — читається як
+// UI-індикатор/маркер прогресу, а не як декоративний орнамент.
 @Composable
 fun OrnamentalDivider(
     modifier: Modifier = Modifier,
-    color: Color = CubeMasterColors.red.copy(alpha = 0.35f),
+    color: Color = CubeMasterColors.red,
     height: Dp = 8.dp
 ) {
     Canvas(
@@ -27,41 +28,30 @@ fun OrnamentalDivider(
             .height(height)
     ) {
         val w = size.width
-        val h = size.height
-        val stepW = 20f
-        val midY = h / 2f
-        val amplitude = h * 0.4f
+        val midY = size.height / 2f
 
-        val path = Path()
-        var x = 0f
-        var up = true
-        path.moveTo(x, midY)
-        while (x < w) {
-            val nextX = (x + stepW).coerceAtMost(w)
-            val nextY = if (up) midY - amplitude else midY + amplitude
-            path.lineTo(nextX, nextY)
-            x = nextX
-            up = !up
-        }
-        drawPath(path, color, style = Stroke(width = 1.dp.toPx()))
+        drawLine(
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    color.copy(alpha = 0f),
+                    CubeMasterColors.redMuted,
+                    color.copy(alpha = 0f)
+                )
+            ),
+            start = Offset(0f, midY),
+            end = Offset(w, midY),
+            strokeWidth = 1.dp.toPx()
+        )
 
-        // Маленькі ромби на піках
-        x = stepW
-        up = false
-        val diamondSize = 3f
-        while (x < w - stepW) {
-            val cy = if (!up) midY - amplitude else midY + amplitude
-            val diamondPath = Path().apply {
-                moveTo(x, cy - diamondSize)
-                lineTo(x + diamondSize, cy)
-                lineTo(x, cy + diamondSize)
-                lineTo(x - diamondSize, cy)
-                close()
-            }
-            drawPath(diamondPath, color)
-            x += stepW * 2
-            up = !up
-        }
+        val segmentWidth = 24.dp.toPx()
+        val segmentHeight = 4.dp.toPx()
+        val segmentLeft = (w - segmentWidth) / 2f
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(segmentLeft, midY - segmentHeight / 2f),
+            size = androidx.compose.ui.geometry.Size(segmentWidth, segmentHeight),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(segmentHeight / 2f)
+        )
     }
 }
 
