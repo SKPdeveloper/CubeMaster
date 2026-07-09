@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.cubemaster"
-        minSdk = 29
+        minSdk = 31
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -91,6 +91,7 @@ dependencies {
 
     implementation(libs.work.runtime.ktx)
     implementation(libs.coil.compose)
+    implementation(libs.haze)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)

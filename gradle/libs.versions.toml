@@ -22,6 +22,7 @@ hiltWork = "1.2.0"
 googleServices = "4.4.2"
 firebaseCrashlytics = "3.0.7"
 firebasePerf = "2.0.2"
+haze = "1.7.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -78,6 +79,9 @@ work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version
 
 # Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Haze (справжній backdrop blur для glassmorphism)
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 
 # Serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
