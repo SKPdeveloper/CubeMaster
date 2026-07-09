@@ -72,6 +72,7 @@ class SummaryViewModel @Inject constructor(
                                 MeasurementUnit.Bag50 -> result.bagsCount.toDouble()
                                 MeasurementUnit.Kg -> result.mixMassKg
                                 MeasurementUnit.M2 -> areaM2
+                                MeasurementUnit.M3 -> result.volumeM3
                                 MeasurementUnit.L -> result.additionalLines.firstOrNull()?.qty ?: 0.0
                                 else -> result.mixMassKg
                             }

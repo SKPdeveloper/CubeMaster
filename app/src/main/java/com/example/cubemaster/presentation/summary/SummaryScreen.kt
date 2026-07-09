@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cubemaster.core.model.MeasurementUnit
+import com.cubemaster.core.model.shortLabelUa
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
 import dev.chrisbanes.haze.HazeState
@@ -107,7 +107,7 @@ private fun MaterialSummaryRow(line: SummaryMaterialLine, hazeState: HazeState?)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    "${String.format("%.2f", line.totalQty)} ${unitShortLabel(line.unit)}",
+                    "${String.format("%.2f", line.totalQty)} ${line.unit.shortLabelUa()}",
                     style = com.example.cubemaster.ui.theme.TabularNumberStyle.copy(
                         fontWeight = MaterialTheme.typography.titleSmall.fontWeight,
                         fontSize = MaterialTheme.typography.titleSmall.fontSize
@@ -117,16 +117,4 @@ private fun MaterialSummaryRow(line: SummaryMaterialLine, hazeState: HazeState?)
             }
         }
     }
-}
-
-private fun unitShortLabel(unit: MeasurementUnit) = when (unit) {
-    MeasurementUnit.Kg -> "кг"
-    MeasurementUnit.Bag25 -> "міш.25"
-    MeasurementUnit.Bag50 -> "міш.50"
-    MeasurementUnit.M2 -> "м²"
-    MeasurementUnit.M3 -> "м³"
-    MeasurementUnit.Pcs -> "шт."
-    MeasurementUnit.L -> "л"
-    MeasurementUnit.M -> "м"
-    MeasurementUnit.Roll -> "рул."
 }

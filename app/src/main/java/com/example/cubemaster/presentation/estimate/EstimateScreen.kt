@@ -22,6 +22,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cubemaster.core.model.MeasurementUnit
+import com.cubemaster.core.model.shortLabelUa
 import com.example.cubemaster.ui.components.*
 import com.example.cubemaster.ui.theme.CubeMasterColors
 import dev.chrisbanes.haze.HazeState
@@ -214,7 +215,7 @@ private fun EstimateLineRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(line.description, style = MaterialTheme.typography.bodySmall)
                 Text(
-                    "${line.qty.toUaString()} ${line.unitLabel.lowercase()} × ${line.unitPrice.toUaString()} грн",
+                    "${line.qty.toUaString()} ${line.unitLabel} × ${line.unitPrice.toUaString()} грн",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -282,13 +283,13 @@ private fun AddLineDialog(
                     var expanded by remember { mutableStateOf(false) }
                     ExposedDropdownMenuBox(expanded, { expanded = it }) {
                         OutlinedTextField(
-                            unit.name, {}, readOnly = true, label = { Text("Одиниця") },
+                            unit.shortLabelUa(), {}, readOnly = true, label = { Text("Одиниця") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
                         ExposedDropdownMenu(expanded, { expanded = false }) {
                             MeasurementUnit.entries.forEach { u ->
-                                DropdownMenuItem(text = { Text(u.name) }, onClick = { unit = u; expanded = false })
+                                DropdownMenuItem(text = { Text(u.shortLabelUa()) }, onClick = { unit = u; expanded = false })
                             }
                         }
                     }
