@@ -104,8 +104,9 @@ private fun MaterialSummaryRow(line: SummaryMaterialLine) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     "${String.format("%.2f", line.totalQty)} ${unitShortLabel(line.unit)}",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = com.example.cubemaster.ui.theme.TabularNumberStyle.fontFamily
+                    style = com.example.cubemaster.ui.theme.TabularNumberStyle.copy(
+                        fontWeight = MaterialTheme.typography.titleSmall.fontWeight,
+                        fontSize = MaterialTheme.typography.titleSmall.fontSize
                     ),
                     color = CubeMasterColors.gold
                 )
